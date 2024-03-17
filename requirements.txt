@@ -138,6 +138,6 @@ webcolors==1.13
 webdiff==0.16.0
 webencodings==0.5.1
 websocket-client==1.7.0
-Werkzeug==3.0.0
+Werkzeug==3.0.1
 widgetsnbextension==4.0.9
 wrapt==1.15.0
