@@ -79,7 +79,7 @@ pandocfilters==1.5.1
 parso==0.8.3
 pathspec @ file:///private/tmp/python-pathspec-20231212-4946-k7fih8/pathspec-0.12.1
 pexpect==4.9.0
-Pillow==10.1.0
+Pillow==10.2.0
 platformdirs==3.10.0
 pluggy==1.3.0
 prometheus-client==0.19.0
