@@ -7,7 +7,7 @@ import sqlparse
 
 BASE_URL = 'https://api.azion.com/v4/edge_sql/schemas'
 
-class AzionDBShell(cmd.Cmd):
+class EdgeSQLShell(cmd.Cmd):
     def __init__(self, token):
         super().__init__()
         self.token = token
@@ -354,7 +354,7 @@ class AzionDBShell(cmd.Cmd):
         self.execute_sql_command(sql_statements)
 
 def signal_handler(sig, frame):
-    print('\nCtrl+C pressed. Exiting Azion DB Shell.')
+    print('\nCtrl+C pressed. Exiting EdgeSQL Shell.')
     exit()
 
 if __name__ == "__main__":
@@ -363,5 +363,5 @@ if __name__ == "__main__":
     if token is None:
         print("Authorization token not found in environment variable AZION_TOKEN")
         exit(1)
-    azion_db_shell = AzionDBShell(token)
+    azion_db_shell = EdgeSQLShell(token)
     azion_db_shell.cmdloop("Welcome to EdgeSQL Shell. Type '.exit' to quit.")
