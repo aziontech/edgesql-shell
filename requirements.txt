@@ -78,6 +78,7 @@ pandas==2.2.0
 pandocfilters==1.5.1
 parso==0.8.3
 pathspec @ file:///private/tmp/python-pathspec-20231212-4946-k7fih8/pathspec-0.12.1
+pathvalidate==3.2.0
 pexpect==4.9.0
 Pillow==10.1.0
 platformdirs==3.10.0
