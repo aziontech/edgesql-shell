@@ -56,18 +56,17 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 3. Use the commands listed below to interact with the EdgeSQL service:
 
    ```bash
-
-.tables						# List all tables
-.schema <table_name>		# Describe table schema
-.dump <table_name> 			# Render database structure as SQL
-.databases					# List all databases
-.use <database_name>		# Switch to a database by name
-.dbinfo						# Get information about the current database
-.read <file_name>			# Load and execute SQL statements from a file
-.create <database_name>		# Create a new database
-.destroy <database_name>	# Destroy a database by name
-.exit						# Exit the EdgeSQL Shell
-```
+   .tables				# List all tables
+   .schema <table_name>		# Describe table schema
+   .dump <table_name> 		# Render database structure as SQL
+   .databases			# List all databases
+   .use <database_name>		# Switch to a database by name
+   .dbinfo				# Get information about the current database
+   .read <file_name>		# Load and execute SQL statements from a file
+   .create <database_name>		# Create a new database
+   .destroy <database_name>	# Destroy a database by name
+   .exit				# Exit the EdgeSQL Shell
+   ```
 
 ## Contributing
 
