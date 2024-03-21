@@ -28,7 +28,7 @@ docutils @ file:///private/tmp/docutils-20231015-5454-w1xze4/docutils-0.20.1
 executing==2.0.1
 fastapi==0.109.1
 fastjsonschema==2.19.1
-Flask==2.2.2
+Flask==2.2.5
 fqdn==1.5.1
 h11==0.14.0
 httpcore==1.0.2
