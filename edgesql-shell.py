@@ -6,7 +6,7 @@ from tabulate import tabulate
 import signal
 import sqlparse
 from pathlib import Path
-from pathvalidate import ValidationError, validate_filename
+from pathvalidate import ValidationError, validate_filepath
 
 BASE_URL = 'https://api.azion.com/v4/edge_sql/schemas'
 IGNORE_TOKENS = ['--']
@@ -78,11 +78,12 @@ class EdgeSQLShell(cmd.Cmd):
         else:
             file_path = Path(args[0])
             try:
-                validate_filename(arg)
+                validate_filepath(args[0], platform='auto')
             except ValidationError as e:
-                write_output(f"{e}\n", file=sys.stderr)
+                write_output(f"Error: {e}")
+                return
 
-            self.output = arg
+            self.output = args[0] 
 
 
     def do_read(self, arg):
