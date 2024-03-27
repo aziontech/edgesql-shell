@@ -25,6 +25,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 - Tabulate library
 - SQLParse library
 - PathValidate library
+- Pandas library
 
 ## Installation
 
