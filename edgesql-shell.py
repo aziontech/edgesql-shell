@@ -1,5 +1,4 @@
 import os
-import sys
 import requests
 import cmd
 from tabulate import tabulate
@@ -7,6 +6,8 @@ import signal
 import sqlparse
 from pathlib import Path
 from pathvalidate import ValidationError, validate_filepath
+import pandas as pd
+from io import StringIO
 
 BASE_URL = 'https://api.azion.com/v4/edge_sql/schemas'
 IGNORE_TOKENS = ['--']
@@ -23,6 +24,7 @@ class EdgeSQLShell(cmd.Cmd):
         self.multiline_command = []
         self.buffer = ''
         self.output = ''
+        self.outFormat = 'tabular'
         self.transaction = False
 
     def update_prompt(self):
@@ -83,7 +85,14 @@ class EdgeSQLShell(cmd.Cmd):
                 write_output(f"Error: {e}")
                 return
 
-            self.output = args[0] 
+            self.output = args[0]
+
+    def do_mode(self, arg):
+        """Set output mode."""
+        if not arg:
+            write_output("Usage: .mode tabular|csv|html|markdown|raw")
+            return
+        self.outFormat = arg
 
 
     def do_read(self, arg):
@@ -113,7 +122,7 @@ class EdgeSQLShell(cmd.Cmd):
     def dump_table(self, table_name):
         self.buffer = "PRAGMA foreign_keys=OFF;"
         self.buffer = ''.join([self.buffer, "BEGIN TRANSACTION;"])
-        self.execute_sql_command(f"select sql from sqlite_schema where tbl_name = '{table_name}';", tab=False, internalOut=True)
+        self.execute_sql_command(f"select sql from sqlite_schema where tbl_name = '{table_name}';", internalOut=True)
         self.buffer = ''.join([self.buffer, "COMMIT;"])
         self.buffer = ''.join([self.buffer, "PRAGMA foreign_keys=ON;"])
         self.buffer = ''.join([self.buffer, ""])
@@ -150,6 +159,8 @@ class EdgeSQLShell(cmd.Cmd):
                     return self.do_dump(" ".join(args))
                 elif command == ".output":
                     return self.do_output(" ".join(args))
+                elif command == ".mode":
+                    return self.do_mode(" ".join(args))
                 else:
                     write_output("Invalid command.")
             elif self.multiline_command:
@@ -195,8 +206,42 @@ class EdgeSQLShell(cmd.Cmd):
         else:
             pass
 
+    def query_output(self, rows, columns):
+        df = pd.DataFrame(rows,columns=columns)
 
-    def execute_sql_command(self, buffer, tab=True, internalOut=False):
+        if self.outFormat == 'tabular':
+            formatted_data = tabulate(df.to_dict(orient='records'), headers="keys", tablefmt='fancy_grid')
+            write_output(formatted_data, self.output)
+        elif self.outFormat == 'markdown':
+            formatted_data = tabulate(df.to_dict(orient='records'), headers="keys", tablefmt='pipe')
+            write_output(formatted_data, self.output)
+        elif self.outFormat == 'csv':
+            if self.output == '':
+                buffer = StringIO()
+                df.to_csv(buffer, index=False)
+                buffer.seek(0)
+                write_output(buffer.getvalue(), self.output)
+            else:
+                df.to_csv(self.output, index=False)
+        elif self.outFormat == 'html':
+            if self.output == '':
+                buffer = StringIO()
+                df.to_html(buffer, index=False)
+                buffer.seek(0)
+                write_output(buffer.getvalue(), self.output)
+            else:
+                df.to_html(self.output, index=False)
+        else: # raw
+            if self.output == '':
+                buffer = StringIO()
+                df.to_csv(buffer, sep=' ', index=False)
+                buffer.seek(0)
+                write_output(buffer.getvalue(), self.output)
+            else:
+                df.to_csv(self.output, sep=' ', index=False)
+            
+
+    def execute_sql_command(self, buffer, outInternal=False):
         if self.current_database_id is None:
             write_output("No database selected. Use '.use <database_name>' to select a database.")
             return
@@ -225,16 +270,12 @@ class EdgeSQLShell(cmd.Cmd):
                     columns = results.get('columns', [])
                     rows = results.get('rows', [])
                     if columns and rows:
-                        if tab:
-                            formatted_table = tabulate(rows, headers=columns, tablefmt="fancy_grid")
-                            write_output(formatted_table, self.output)
-                        else:
+                        if outInternal:
                             for row in rows:
                                 result = ' '.join(map(str, row))
-                                if internalOut:
-                                    self.buffer = ''.join([self.buffer, result])
-                                else:
-                                    write_output(result, self.output)
+                                self.buffer = ''.join([self.buffer, result])
+                        else:
+                            self.query_output(rows, columns)
             else:
                 write_output("Error: Empty or invalid response data.")
         else:
