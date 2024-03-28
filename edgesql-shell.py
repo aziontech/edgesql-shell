@@ -94,6 +94,26 @@ class EdgeSQLShell(cmd.Cmd):
             return
         self.outFormat = arg
 
+    def do_import(self, arg):
+        """Import data from FILE into TABLE."""
+        if not arg:
+            write_output("Usage: .import file table")
+            return
+        
+        args = arg.split()
+        if len(args) != 2:
+            write_output("Usage: .import file table")
+            return
+
+        if (self.outFormat != 'csv'):
+            write_output('Current mode ins\'t compatible with that operation')
+            return
+        
+        file = args[0]
+        table_name = args[1]
+
+        self.import_data(file, table_name)
+
 
     def do_read(self, arg):
         """Load SQL statements from file and execute them."""
@@ -122,7 +142,7 @@ class EdgeSQLShell(cmd.Cmd):
     def dump_table(self, table_name):
         self.buffer = "PRAGMA foreign_keys=OFF;"
         self.buffer = ''.join([self.buffer, "BEGIN TRANSACTION;"])
-        self.execute_sql_command(f"select sql from sqlite_schema where tbl_name = '{table_name}';", internalOut=True)
+        self.execute_sql_command(f"select sql from sqlite_schema where tbl_name = '{table_name}';", outInternal=True)
         self.buffer = ''.join([self.buffer, "COMMIT;"])
         self.buffer = ''.join([self.buffer, "PRAGMA foreign_keys=ON;"])
         self.buffer = ''.join([self.buffer, ""])
@@ -161,6 +181,8 @@ class EdgeSQLShell(cmd.Cmd):
                     return self.do_output(" ".join(args))
                 elif command == ".mode":
                     return self.do_mode(" ".join(args))
+                elif command == ".import":
+                    return self.do_import(" ".join(args))
                 else:
                     write_output("Invalid command.")
             elif self.multiline_command:
@@ -253,7 +275,10 @@ class EdgeSQLShell(cmd.Cmd):
             'Content-Type': 'application/json'
         }
 
-        sql_commands = self.split_sql_buffer(buffer)
+        if type(buffer) == list:
+            sql_commands = buffer
+        else:
+            sql_commands = self.split_sql_buffer(buffer)
 
         data = {"statements": sql_commands}
         response = requests.post(url, json=data, headers=headers)
@@ -295,10 +320,8 @@ class EdgeSQLShell(cmd.Cmd):
         # Use sqlparse's split method to split SQL commands
         # This handles cases like semicolons within strings or comments
         sql_commands = sqlparse.split(sql_buffer)
-
         # Remove any leading or trailing whitespace from each command
         sql_commands = [cmd.strip() for cmd in sql_commands if cmd.strip()]
-
         return sql_commands
 
 
@@ -439,7 +462,7 @@ class EdgeSQLShell(cmd.Cmd):
             write_output("Usage: .destroy <database_name>")
             return
 
-        database_id = self.get_database_id(arg[0])
+        database_id = self.get_database_id(arg)
         if database_id == -1:
             return
 
@@ -451,7 +474,7 @@ class EdgeSQLShell(cmd.Cmd):
         response = requests.delete(url, headers=headers)
 
         if response.status_code == 202:
-            if self.current_database_name == arg[0]:  
+            if self.current_database_name == arg:  
                 self.current_database_id = None  
                 self.current_database_name = None  
             write_output('Database deleted successfully.')
@@ -473,6 +496,57 @@ class EdgeSQLShell(cmd.Cmd):
             return
 
         self.execute_sql_command(sql_statements)
+
+    def generate_create_table_sql(self, df, table_name):
+        columns = []
+        for column_name, dtype in df.dtypes.items():
+            if dtype == 'object':
+                columns.append(f"{column_name} VARCHAR")
+            elif dtype == 'int64':
+                columns.append(f"{column_name} INT")
+            elif dtype == 'float64':
+                columns.append(f"{column_name} FLOAT")
+            # Add more conditions as needed for other data types
+        
+        sql = f"CREATE TABLE {table_name} (\n"
+        sql += ",\n".join(columns)
+        sql += "\n);"
+        return sql
+    
+    def generate_insert_sql(self, df, table_name):
+        sql_commands = []
+        for index, row in df.iterrows():
+            values = ", ".join([f"'{value}'" if isinstance(value, str) else str(value) for value in row])
+            sql = f"INSERT INTO {table_name} VALUES ({values});"
+            sql_commands.append(sql)
+        return sql_commands
+    
+    def table_exits(self, table_name):
+        self.buffer = ''
+        self.execute_sql_command(f"select sql from sqlite_schema where tbl_name = '{table_name}';", outInternal=True)
+        if self.buffer != '':
+            return True
+        
+        return False
+
+    def import_data(self, file, table_name):
+        try:
+            df = pd.read_csv(file)
+        except FileNotFoundError:
+            write_output(f'Error: The specified file "{file}" does not exist.')
+        except pd.errors.EmptyDataError:
+            write_output(f'Error: The specified file "{file}" is empty or contains no data.')
+        except pd.errors.ParserError:
+            write_output(f'Error: An error occurred while parsing "{file}". Please check if the file format is correct.')
+        else:
+            if self.table_exits(table_name) == False:
+                # If the table does not exist, so create one
+                sql = self.generate_create_table_sql(df, table_name)
+                self.execute_sql_command(sql)
+            
+            sql = self.generate_insert_sql(df, table_name)
+            self.execute_sql_command(sql)
+
 
 def signal_handler(sig, frame):
     write_output('\nCtrl+C pressed. Exiting EdgeSQL Shell.')
