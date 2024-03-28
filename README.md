@@ -16,6 +16,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 - Transaction support
 - Output to standard output or file
 - Output on formats Tabular, CSV, HTML, Markdown, and Raw
+- Import CSV capability
 - Error handling and graceful exit
 
 ## Requirements
@@ -69,6 +70,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .destroy <database_name>	   # Destroy a database by name
    .output stdout|file_path           # Set the output to stdout or file
    .mode tabular|csv|html|markdown|raw # Set output mode
+   .import file table                 # Import data from FILE into TABLE
    .exit				   # Exit the EdgeSQL Shell
    ```
 
