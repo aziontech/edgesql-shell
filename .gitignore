@@ -1,1 +1,4 @@
 venv/
+pyvenv.cfg
+bin
+lib/
