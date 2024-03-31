@@ -89,9 +89,11 @@ class EdgeSQLShell(cmd.Cmd):
 
     def do_mode(self, arg):
         """Set output mode."""
-        if not arg:
+        mode_lst = ['tabular','csv','html','markdown','raw']
+        if not arg or arg not in mode_lst:
             write_output("Usage: .mode tabular|csv|html|markdown|raw")
             return
+
         self.outFormat = arg
 
     def do_import(self, arg):
@@ -133,22 +135,45 @@ class EdgeSQLShell(cmd.Cmd):
 
     def do_dump(self, arg):
         """Render database structure as SQL."""
-        if not arg:
-            write_output("Usage: .dump <table_name>")
+        if arg:
+            write_output("Usage: .dump")
             return
-        else:
-            self.dump_table(arg)
+        
+        self.dump_table(arg)
     
     def dump_table(self, table_name):
-        self.buffer = "PRAGMA foreign_keys=OFF;"
-        self.buffer = ''.join([self.buffer, "BEGIN TRANSACTION;"])
-        self.execute_sql_command(f"select sql from sqlite_schema where tbl_name = '{table_name}';", outInternal=True)
-        self.buffer = ''.join([self.buffer, "COMMIT;"])
-        self.buffer = ''.join([self.buffer, "PRAGMA foreign_keys=ON;"])
-        self.buffer = ''.join([self.buffer, ""])
-        formatted_query = sqlparse.format(self.buffer, reindent=True, keyword_case='upper')
-        write_output(formatted_query, self.output)
+        write_output("PRAGMA foreign_keys=OFF;", self.output)
+        write_output("BEGIN TRANSACTION;", self.output)
+
+        # Table creation
+        self.execute_sql_command("SELECT sql FROM sqlite_schema WHERE type=='table' \
+                                 AND sql NOT NULL \
+                                 ORDER BY tbl_name='sqlite_sequence', rowid;", outInternal=True)
+        for statement in self.buffer:
+            formatted_query = sqlparse.format(f'CREATE TABLE IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
+            write_output(formatted_query, self.output)
+
+        # Indexes, Triggers, and Views
+        self.execute_sql_command("SELECT sql FROM sqlite_schema \
+                                WHERE sql NOT NULL \
+                                AND type IN ('index','trigger','view');", outInternal=True)
+        for statement in self.buffer:
+            formatted_query = ''
+            if 'INDEX' in statement.upper():
+                formatted_query = sqlparse.format(f'CREATE INDEX IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
+            elif 'TRIGGER' in statement.upper():
+                formatted_query = sqlparse.format(f'CREATE TRIGGER IF NOT EXISTS {statement[15:]};', reindent=True, keyword_case='upper')
+            elif 'VIEW' in statement.upper():
+                formatted_query = sqlparse.format(f'CREATE VIEW IF NOT EXISTS {statement[12:]};', reindent=True, keyword_case='upper')
+            
+            if formatted_query != '':
+                write_output(formatted_query, self.output)
         self.buffer = ''
+        
+        write_output("COMMIT;", self.output)
+        write_output("PRAGMA foreign_keys=ON;", self.output)
+        write_output("", self.output)
+        
 
     def default(self, arg):
         """Execute SQL command and handle multiline input."""
@@ -296,9 +321,10 @@ class EdgeSQLShell(cmd.Cmd):
                     rows = results.get('rows', [])
                     if columns and rows:
                         if outInternal:
+                            self.buffer = []
                             for row in rows:
-                                result = ' '.join(map(str, row))
-                                self.buffer = ''.join([self.buffer, result])
+                                result = ''.join(map(str, row))
+                                self.buffer.append(result)
                         else:
                             self.query_output(rows, columns)
             else:
