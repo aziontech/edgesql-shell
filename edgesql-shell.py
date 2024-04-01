@@ -309,8 +309,8 @@ class EdgeSQLShell(cmd.Cmd):
         response = requests.post(url, json=data, headers=headers)
         self.transaction = False
 
+        json_data = response.json()
         if response.status_code == 200:
-            json_data = response.json()
             if 'data' in json_data and isinstance(json_data['data'], list) and json_data['data']:
                 result_data = json_data['data'][0]
                 if 'error' in result_data:
@@ -330,7 +330,8 @@ class EdgeSQLShell(cmd.Cmd):
             else:
                 write_output("Error: Empty or invalid response data.")
         else:
-            write_output(f'"Error:", {response.status_code}')
+            msg_err = json_data['error']
+            write_output(f'{msg_err}')
 
     def split_sql_buffer(self, sql_buffer):
         """
@@ -359,13 +360,14 @@ class EdgeSQLShell(cmd.Cmd):
         }
         response = requests.get(url, headers=headers)
 
+        json_data = response.json()
         if response.status_code == 200:
-            json_data = response.json()
             databases = [(db['id'], db['name'], db['status'], db['created_at'], db['updated_at']) for db in json_data['results']]
             formatted_table = tabulate(databases, headers=['ID', 'Name', 'Status', 'Created At', 'Updated At'], tablefmt="fancy_grid")
             write_output(formatted_table, self.output)
         else:
-            write_output(f'"Error:", {response.status_code}')
+            msg_err = json_data['detail']
+            write_output(f'Error: {msg_err}')
 
     def set_current_database(self, database_name):
         url = f'{BASE_URL}'
@@ -375,8 +377,8 @@ class EdgeSQLShell(cmd.Cmd):
         }
         response = requests.get(url, headers=headers)
 
+        json_data = response.json()
         if response.status_code == 200:
-            json_data = response.json()
             for db in json_data['results']:
                 if db['name'] == database_name:
                     self.current_database_id = db['id']
@@ -386,7 +388,8 @@ class EdgeSQLShell(cmd.Cmd):
                     return
             write_output(f"Database '{database_name}' not found.")
         else:
-            write_output(f'"Error:", {response.status_code}')
+            msg_err = json_data['detail']
+            write_output(f'Error: {msg_err}')
 
     def get_database_id(self, database_name):
         # Define the URL for databases
@@ -398,14 +401,10 @@ class EdgeSQLShell(cmd.Cmd):
             'Authorization': f'Token {self.token}'
         }
 
-        # Execute the GET request
         response = requests.get(url, headers=headers)
 
-        # Check if the request was successful
+        json_data = response.json()
         if response.status_code == 200:
-            # Extract the JSON data from the response
-            json_data = response.json()
-            
             # Check if the 'results' key exists and it's not empty
             if 'results' in json_data and json_data['results']:
                 # Iterate over the results to find the database ID by name
@@ -416,7 +415,8 @@ class EdgeSQLShell(cmd.Cmd):
             else:
                 write_output("No databases found.")
         else:
-            write_output(f'"Error:", {response.status_code}')
+            msg_err = json_data['detail']
+            write_output(f'Error: {msg_err}')
         return -1
 
     def get_database_info(self):
@@ -431,20 +431,22 @@ class EdgeSQLShell(cmd.Cmd):
         }
         response = requests.get(url, headers=headers)
 
+        json_data = response.json()
         if response.status_code == 200:
-            json_data = response.json()['data']
+            data = response.json()['data']
             table_data = [
-                ["Database ID", json_data['id']],
-                ["Database Name", json_data['name']],
-                ["Client ID", json_data['client_id']],
-                ["Status", json_data['status']],
-                ["Created At", json_data['created_at']],
-                ["Updated At", json_data['updated_at']]
+                ["Database ID", data['id']],
+                ["Database Name", data['name']],
+                ["Client ID", data['client_id']],
+                ["Status", data['status']],
+                ["Created At", data['created_at']],
+                ["Updated At", data['updated_at']]
             ]
             database_info = tabulate(table_data, headers=["Attribute", "Value"], tablefmt="fancy_grid")
             write_output(database_info, self.output)
         else:
-            write_output(f'"Error:", {response.status_code}')
+            msg_err = json_data['detail']
+            write_output(f'Error: {msg_err}')
 
     def do_create(self, arg):
         """Create a new database."""
@@ -463,8 +465,8 @@ class EdgeSQLShell(cmd.Cmd):
 
         response = requests.post(url, json=data, headers=headers)
 
+        json_data = response.json()
         if response.status_code == 202:
-            json_data = response.json()
             if 'data' in json_data and 'id' in json_data['data'] and 'name' in json_data['data']:
                 db_id = json_data['data']['id']
                 db_name = json_data['data']['name']
@@ -473,8 +475,8 @@ class EdgeSQLShell(cmd.Cmd):
             else:
                 write_output("Error: Unexpected response format.")
         else:
-            error_detail = response.json().get('detail')
-            error_name = response.json().get('name')
+            error_detail = json_data['detail']
+            error_name = json_data['name']
             if error_detail:
                 write_output(f"Error: {error_detail}")
             elif error_name:
@@ -505,7 +507,8 @@ class EdgeSQLShell(cmd.Cmd):
                 self.current_database_name = None  
             write_output('Database deleted successfully.')
         else:
-            write_output(f"Error: {response.status_code}")
+            msg_err = response.json()['detail']
+            write_output(f'Error: {msg_err}')
 
 
     def read_sql_from_file(self, file_name):
