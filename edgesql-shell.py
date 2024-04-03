@@ -89,9 +89,9 @@ class EdgeSQLShell(cmd.Cmd):
 
     def do_mode(self, arg):
         """Set output mode."""
-        mode_lst = ['tabular','csv','html','markdown','raw']
+        mode_lst = ['excel', 'tabular','csv','html','markdown','raw']
         if not arg or arg not in mode_lst:
-            write_output("Usage: .mode tabular|csv|html|markdown|raw")
+            write_output("Usage: .mode excel|tabular|csv|html|markdown|raw")
             return
 
         self.outFormat = arg
@@ -107,7 +107,7 @@ class EdgeSQLShell(cmd.Cmd):
             write_output("Usage: .import file table")
             return
 
-        if (self.outFormat != 'csv'):
+        if (self.outFormat != 'csv' and self.outFormat != 'excel'):
             write_output('Current mode ins\'t compatible with that operation')
             return
         
@@ -303,6 +303,14 @@ class EdgeSQLShell(cmd.Cmd):
                 write_output(buffer.getvalue(), self.output)
             else:
                 df.to_csv(self.output, index=False)
+        elif self.outFormat == 'excel':
+            if self.output == '':
+                buffer = StringIO()
+                df.to_csv(buffer, index=False)
+                buffer.seek(0)
+                write_output(buffer.getvalue(), self.output)
+            else:
+                df.to_excel(self.output, index=False)
         elif self.outFormat == 'html':
             if self.output == '':
                 buffer = StringIO()
@@ -595,7 +603,13 @@ class EdgeSQLShell(cmd.Cmd):
 
     def import_data(self, file, table_name):
         try:
-            df = pd.read_csv(file)
+            if self.outFormat == 'csv':
+                df = pd.read_csv(file)
+            elif self.outFormat == 'excel':
+                df = pd.read_excel(file)
+            else:
+                write_output("Error: Unsupported output format specified.")
+                return
         except FileNotFoundError:
             write_output(f'Error: The specified file "{file}" does not exist.')
         except pd.errors.EmptyDataError:
