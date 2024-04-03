@@ -603,10 +603,13 @@ class EdgeSQLShell(cmd.Cmd):
 
     def import_data(self, file, table_name):
         try:
-            if (self.outFormat != 'csv'):
+            if self.outFormat == 'csv':
                 df = pd.read_csv(file)
-            elif (self.outFormat != 'excel'):
+            elif self.outFormat == 'excel':
                 df = pd.read_excel(file)
+            else:
+                write_output("Error: Unsupported output format specified.")
+                return
         except FileNotFoundError:
             write_output(f'Error: The specified file "{file}" does not exist.')
         except pd.errors.EmptyDataError:
