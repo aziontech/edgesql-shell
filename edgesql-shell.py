@@ -310,6 +310,8 @@ class EdgeSQLShell(cmd.Cmd):
                 df.to_csv(buffer, index=False)
                 buffer.seek(0)
                 write_output(buffer.getvalue(), self.output)
+            elif not self.output.endswith(".xlsx"): # engine=io.excel.xlsx.writer
+                write_output('For "excel" mode, the output file must have the extension .xlsx', '')
             else:
                 df.to_excel(self.output, index=False)
         elif self.outFormat == 'html':
