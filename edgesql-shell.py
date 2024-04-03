@@ -145,7 +145,7 @@ class EdgeSQLShell(cmd.Cmd):
             write_output("Usage: .dump [table_name]")
             return
 
-    def dump_table(self, table_name):
+    def dump_table(self, table_name, ddl_only=False):
         if self.table_exits(table_name) == False:
             write_output("Table not found", self.output)
             return
@@ -180,16 +180,17 @@ class EdgeSQLShell(cmd.Cmd):
                 write_output(formatted_query, self.output)
 
         # Data
-        self.execute_sql_command(f'SELECT * FROM {table_name};', outInternal=True)
-        df = pd.DataFrame(self.buffer[1],columns=self.buffer[0])
-        sql_commands = self.generate_insert_sql(df, table_name)
-        for cmd in sql_commands:
-            write_output(cmd, self.output)
+        if ddl_only == False:
+            self.execute_sql_command(f'SELECT * FROM {table_name};', outInternal=True)
+            df = pd.DataFrame(self.buffer[1],columns=self.buffer[0])
+            sql_commands = self.generate_insert_sql(df, table_name)
+            for cmd in sql_commands:
+                write_output(cmd, self.output)
 
         write_output("", self.output)
 
     
-    def dump(self, arg=False):
+    def dump(self, arg=False, ddl_only=False):
         write_output("PRAGMA foreign_keys=OFF;", self.output)
         write_output("BEGIN TRANSACTION;", self.output)
 
@@ -199,10 +200,10 @@ class EdgeSQLShell(cmd.Cmd):
             table_lst = self.buffer[1]
             for table in table_lst:
                 table_name = table[0]
-                self.dump_table(table_name)
+                self.dump_table(table_name, ddl_only)
         else: # Dump particular table(s)
             for tbl in arg:
-                self.dump_table(tbl)
+                self.dump_table(tbl, ddl_only)
 
         write_output("COMMIT;", self.output)
         write_output("PRAGMA foreign_keys=ON;", self.output)
