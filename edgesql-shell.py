@@ -135,44 +135,77 @@ class EdgeSQLShell(cmd.Cmd):
 
     def do_dump(self, arg):
         """Render database structure as SQL."""
-        if arg:
-            write_output("Usage: .dump")
+
+        args = arg.split()
+        if not arg:
+            self.dump()
+        elif len(args):
+            self.dump(args)
+        else:
+            write_output("Usage: .dump [table_name]")
             return
-        
-        self.dump_table(arg)
-    
+
     def dump_table(self, table_name):
-        write_output("PRAGMA foreign_keys=OFF;", self.output)
-        write_output("BEGIN TRANSACTION;", self.output)
+        if self.table_exits(table_name) == False:
+            write_output("Table not found", self.output)
+            return
 
-        # Table creation
-        self.execute_sql_command("SELECT sql FROM sqlite_schema WHERE type=='table' \
+        # Table
+        self.execute_sql_command(f"SELECT sql FROM sqlite_schema WHERE type like 'table' \
                                  AND sql NOT NULL \
+                                 AND name like '{table_name}' \
                                  ORDER BY tbl_name='sqlite_sequence', rowid;", outInternal=True)
-        for statement in self.buffer:
-            formatted_query = sqlparse.format(f'CREATE TABLE IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
-            write_output(formatted_query, self.output)
-
+        statement = self.buffer[1][0][0]
+        formatted_query = sqlparse.format(f'CREATE TABLE IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
+        write_output(formatted_query, self.output)
+    
         # Indexes, Triggers, and Views
-        self.execute_sql_command("SELECT sql FROM sqlite_schema \
+        self.execute_sql_command(f"SELECT sql FROM sqlite_schema \
                                 WHERE sql NOT NULL \
+                                AND tbl_name like '{table_name}' \
                                 AND type IN ('index','trigger','view');", outInternal=True)
-        for statement in self.buffer:
-            formatted_query = ''
+        rows = self.buffer[1]
+        for row in rows:
+            statement = row[0]
             if 'INDEX' in statement.upper():
                 formatted_query = sqlparse.format(f'CREATE INDEX IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
             elif 'TRIGGER' in statement.upper():
                 formatted_query = sqlparse.format(f'CREATE TRIGGER IF NOT EXISTS {statement[15:]};', reindent=True, keyword_case='upper')
             elif 'VIEW' in statement.upper():
                 formatted_query = sqlparse.format(f'CREATE VIEW IF NOT EXISTS {statement[12:]};', reindent=True, keyword_case='upper')
+            else:
+                formatted_query = ''
             
             if formatted_query != '':
                 write_output(formatted_query, self.output)
-        self.buffer = ''
-        
+
+        # Data
+        self.execute_sql_command(f'SELECT * FROM {table_name};', outInternal=True)
+        df = pd.DataFrame(self.buffer[1],columns=self.buffer[0])
+        sql_commands = self.generate_insert_sql(df, table_name)
+        for cmd in sql_commands:
+            write_output(cmd, self.output)
+
+        write_output("", self.output)
+
+    
+    def dump(self, arg=False):
+        write_output("PRAGMA foreign_keys=OFF;", self.output)
+        write_output("BEGIN TRANSACTION;", self.output)
+
+        # Dump all tables
+        if arg == False:
+            self.execute_sql_command("SELECT name FROM sqlite_schema WHERE type like 'table';", outInternal=True)
+            table_lst = self.buffer[1]
+            for table in table_lst:
+                table_name = table[0]
+                self.dump_table(table_name)
+        else: # Dump particular table(s)
+            for tbl in arg:
+                self.dump_table(tbl)
+
         write_output("COMMIT;", self.output)
         write_output("PRAGMA foreign_keys=ON;", self.output)
-        write_output("", self.output)
         
 
     def default(self, arg):
@@ -322,9 +355,11 @@ class EdgeSQLShell(cmd.Cmd):
                     if columns and rows:
                         if outInternal:
                             self.buffer = []
+                            self.buffer.append(columns)
+                            result = []
                             for row in rows:
-                                result = ''.join(map(str, row))
-                                self.buffer.append(result)
+                                result.append(row)
+                            self.buffer.append(result)
                         else:
                             self.query_output(rows, columns)
             else:
