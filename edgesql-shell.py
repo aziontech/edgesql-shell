@@ -9,6 +9,10 @@ from pathvalidate import ValidationError, validate_filepath
 import pandas as pd
 from io import StringIO
 
+DUMP_SCHEMA_ONLY = 0x1
+DUMP_DATA_ONLY = 0x1 << 1
+DUMP_ALL = DUMP_SCHEMA_ONLY | DUMP_DATA_ONLY
+
 BASE_URL = 'https://api.azion.com/v4/edge_sql/schemas'
 IGNORE_TOKENS = ['--']
 
@@ -135,52 +139,63 @@ class EdgeSQLShell(cmd.Cmd):
 
     def do_dump(self, arg):
         """Render database structure as SQL."""
+        dump = 0x0
 
         args = arg.split()
+
         if not arg:
             self.dump()
-        elif len(args):
-            self.dump(args)
         else:
-            write_output("Usage: .dump [table_name]")
-            return
+            if '--schema-only' in args:
+                args.remove('--schema-only')
+                dump = dump | DUMP_SCHEMA_ONLY
+            if '--data-only' in args:
+                args.remove('--data-only')
+                dump = dump | DUMP_DATA_ONLY
 
-    def dump_table(self, table_name, ddl_only=False):
+            if dump == 0x0:
+                self.dump(arg=args, dump=DUMP_ALL)
+            else:
+                self.dump(arg=args,dump=dump)
+
+
+    def dump_table(self, table_name, dump=DUMP_ALL):
         if self.table_exits(table_name) == False:
             write_output("Table not found", self.output)
             return
 
-        # Table
-        self.execute_sql_command(f"SELECT sql FROM sqlite_schema WHERE type like 'table' \
-                                 AND sql NOT NULL \
-                                 AND name like '{table_name}' \
-                                 ORDER BY tbl_name='sqlite_sequence', rowid;", outInternal=True)
-        statement = self.buffer[1][0][0]
-        formatted_query = sqlparse.format(f'CREATE TABLE IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
-        write_output(formatted_query, self.output)
-    
-        # Indexes, Triggers, and Views
-        self.execute_sql_command(f"SELECT sql FROM sqlite_schema \
-                                WHERE sql NOT NULL \
-                                AND tbl_name like '{table_name}' \
-                                AND type IN ('index','trigger','view');", outInternal=True)
-        rows = self.buffer[1]
-        for row in rows:
-            statement = row[0]
-            if 'INDEX' in statement.upper():
-                formatted_query = sqlparse.format(f'CREATE INDEX IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
-            elif 'TRIGGER' in statement.upper():
-                formatted_query = sqlparse.format(f'CREATE TRIGGER IF NOT EXISTS {statement[15:]};', reindent=True, keyword_case='upper')
-            elif 'VIEW' in statement.upper():
-                formatted_query = sqlparse.format(f'CREATE VIEW IF NOT EXISTS {statement[12:]};', reindent=True, keyword_case='upper')
-            else:
-                formatted_query = ''
-            
-            if formatted_query != '':
-                write_output(formatted_query, self.output)
+        if dump & DUMP_SCHEMA_ONLY:
+            # Table
+            self.execute_sql_command(f"SELECT sql FROM sqlite_schema WHERE type like 'table' \
+                                    AND sql NOT NULL \
+                                    AND name like '{table_name}' \
+                                    ORDER BY tbl_name='sqlite_sequence', rowid;", outInternal=True)
+            statement = self.buffer[1][0][0]
+            formatted_query = sqlparse.format(f'CREATE TABLE IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
+            write_output(formatted_query, self.output)
+        
+            # Indexes, Triggers, and Views
+            self.execute_sql_command(f"SELECT sql FROM sqlite_schema \
+                                    WHERE sql NOT NULL \
+                                    AND tbl_name like '{table_name}' \
+                                    AND type IN ('index','trigger','view');", outInternal=True)
+            rows = self.buffer[1]
+            for row in rows:
+                statement = row[0]
+                if 'INDEX' in statement.upper():
+                    formatted_query = sqlparse.format(f'CREATE INDEX IF NOT EXISTS {statement[13:]};', reindent=True, keyword_case='upper')
+                elif 'TRIGGER' in statement.upper():
+                    formatted_query = sqlparse.format(f'CREATE TRIGGER IF NOT EXISTS {statement[15:]};', reindent=True, keyword_case='upper')
+                elif 'VIEW' in statement.upper():
+                    formatted_query = sqlparse.format(f'CREATE VIEW IF NOT EXISTS {statement[12:]};', reindent=True, keyword_case='upper')
+                else:
+                    formatted_query = ''
+                
+                if formatted_query != '':
+                    write_output(formatted_query, self.output)
 
         # Data
-        if ddl_only == False:
+        if dump  & DUMP_DATA_ONLY:
             self.execute_sql_command(f'SELECT * FROM {table_name};', outInternal=True)
             df = pd.DataFrame(self.buffer[1],columns=self.buffer[0])
             sql_commands = self.generate_insert_sql(df, table_name)
@@ -190,20 +205,20 @@ class EdgeSQLShell(cmd.Cmd):
         write_output("", self.output)
 
     
-    def dump(self, arg=False, ddl_only=False):
+    def dump(self, arg=False, dump=DUMP_ALL):
         write_output("PRAGMA foreign_keys=OFF;", self.output)
         write_output("BEGIN TRANSACTION;", self.output)
 
         # Dump all tables
-        if arg == False:
+        if not arg or len(arg) == 0:
             self.execute_sql_command("SELECT name FROM sqlite_schema WHERE type like 'table';", outInternal=True)
             table_lst = self.buffer[1]
             for table in table_lst:
                 table_name = table[0]
-                self.dump_table(table_name, ddl_only)
+                self.dump_table(table_name, dump)
         else: # Dump particular table(s)
             for tbl in arg:
-                self.dump_table(tbl, ddl_only)
+                self.dump_table(tbl, dump)
 
         write_output("COMMIT;", self.output)
         write_output("PRAGMA foreign_keys=ON;", self.output)
