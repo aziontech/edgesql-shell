@@ -13,6 +13,7 @@ from io import StringIO
 DUMP_SCHEMA_ONLY = 0x1
 DUMP_DATA_ONLY = 0x1 << 1
 DUMP_ALL = DUMP_SCHEMA_ONLY | DUMP_DATA_ONLY
+DUMP_NONE = 0x0
 
 IGNORE_TOKENS = ['--']
 
@@ -86,8 +87,15 @@ class EdgeSQLShell(cmd.Cmd):
             utils.write_output("Usage: .create <database_name>")
             return
 
-        database_name = args[0]
-        self.edgeSql.create_database(database_name)
+        database_name = arg.strip()
+        if not database_name:
+            utils.write_output("Error: Database name cannot be empty.")
+            return
+        
+        try:
+            self.edgeSql.create_database(database_name)
+        except Exception as e:
+            utils.write_output(f"Error creating database: {e}")
 
 
     def do_destroy(self, arg):
@@ -105,19 +113,35 @@ class EdgeSQLShell(cmd.Cmd):
         if len(args) > 1:
             utils.write_output("Usage: .destroy <database_name>")
             return
-
-        database_id = self.edgeSql.get_database_id(args[0])
-        if database_id == -1:
-            return
         
-        self.edgeSql.destroy_database(database_id)
+        database_name = arg.strip()
+        if not database_name:
+            utils.write_output("Error: Database name cannot be empty.")
+            return
+
+        try:
+            database_id = self.edgeSql.get_database_id(database_name)
+            if not database_id:
+                utils.write_output(f"Database '{database_name}' not found.")
+                return
+            
+            self.edgeSql.destroy_database(database_id)
+        except Exception as e:
+            utils.write_output(f"Error destroying database: {e}")
 
 
     def do_tables(self, arg):
         """List all tables."""
         output = self.edgeSql.list_tables()
-        if output:
-            self.query_output(output['rows'], output['columns'])
+        if output is not None:
+            rows = output.get('rows')
+            columns = output.get('columns')
+            if rows and columns:
+                self.query_output(rows, columns)
+            else:
+                utils.write_output("No tables available.")
+        else:
+            utils.write_output("Error listing tables.")
 
 
     def do_schema(self, arg):
@@ -127,22 +151,37 @@ class EdgeSQLShell(cmd.Cmd):
         Args:
             arg (str): The name of the table to describe.
         """
-        if not arg:
+        if not arg or len(arg) > 2:
             utils.write_output("Usage: .schema <table_name>")
             return
-        output = self.edgeSql.describe_table(arg)
-        if output:
-            self.query_output(output['rows'], output['columns'])
+        else: 
+            table_name = arg.strip()
+        
+        output = self.edgeSql.describe_table(table_name)
+        if output is not None:
+            rows = output.get('rows')
+            columns = output.get('columns')
+            if rows and columns:
+                self.query_output(rows, columns)
+            else:
+                utils.write_output(f"No schema information found for table '{table_name}'.")
+        else:
+            utils.write_output("Error describing table schema.")
 
 
     def do_databases(self, arg):
         """List all databases."""
         db_list = self.edgeSql.list_databases()
         if db_list:
-            formatted_table = tabulate(db_list['databases'],
-                                       headers=db_list['columns'],
-                                       tablefmt="fancy_grid")
-            utils.write_output(formatted_table, self.output)
+            databases = db_list.get('databases')
+            columns = db_list.get('columns')
+            if databases and columns:
+                formatted_table = tabulate(databases, headers=columns, tablefmt="fancy_grid")
+                utils.write_output(formatted_table, self.output)
+            else:
+                utils.write_output("Error: Invalid database information.")
+        else:
+            utils.write_output("No databases found.")
 
 
     def do_use(self, arg):
@@ -155,17 +194,31 @@ class EdgeSQLShell(cmd.Cmd):
         if not arg:
             utils.write_output("Usage: .use <database_name>")
             return
-        if self.edgeSql.set_current_database(arg):
+        
+        database_name = arg.strip()
+        if not database_name:
+            utils.write_output("Invalid database name.")
+            return
+
+        if self.edgeSql.set_current_database(database_name):
             self.update_prompt()
             utils.write_output(f"Switched to database '{arg}'.")
 
 
     def do_dbinfo(self, arg):
         """Get information about the current database."""
+        if not self.edgeSql.get_current_database_id():
+            utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
+            return
+
         db_info = self.edgeSql.get_database_info()
         if db_info:
-            database_info = tabulate(db_info['table_data'], headers=db_info['columns'], tablefmt="fancy_grid")
+            data = db_info.get('table_data')
+            columns = db_info.get('columns')
+            database_info = tabulate(data, headers=columns, tablefmt="fancy_grid")
             utils.write_output(database_info, self.output)
+        else:
+            utils.write_output("Error: Unable to fetch database information.")
 
 
     def do_output(self, arg):
@@ -179,19 +232,20 @@ class EdgeSQLShell(cmd.Cmd):
             utils.write_output("Usage: .output stdout|file_path")
             return
         
-        args = arg.split()
-        if args[0] == 'stdout':
+        output_mode = arg.split()[0].lower()
+        if output_mode == 'stdout':
             self.output = ''
+            utils.write_output("Output set to stdout.")
         else:
-            file_path = Path(args[0])
+            file_path = Path(output_mode)
             try:
-                validate_filepath(args[0], platform='auto')
+                validate_filepath(file_path, platform='auto')
+                self.output = output_mode
+                utils.write_output(f"Output set to file: {output_mode}")
             except ValidationError as e:
                 utils.write_output(f"Error: {e}")
                 return
-
-            self.output = args[0]
-
+    
 
     def do_mode(self, arg):
         """
@@ -201,11 +255,14 @@ class EdgeSQLShell(cmd.Cmd):
             arg (str): Output mode ('excel', 'tabular', 'csv', 'html', 'markdown', 'raw').
         """
         mode_lst = ['excel', 'tabular','csv','html','markdown','raw']
-        if not arg or arg not in mode_lst:
+        arg_lower = arg.lower() if arg else None
+    
+        if not arg_lower or arg_lower not in mode_lst:
             utils.write_output("Usage: .mode excel|tabular|csv|html|markdown|raw")
             return
 
-        self.outFormat = arg
+        self.outFormat = arg_lower
+        utils.write_output(f"Output mode set to: {arg_lower}")
 
 
     def do_import(self, arg):
@@ -224,13 +281,17 @@ class EdgeSQLShell(cmd.Cmd):
             utils.write_output("Usage: .import <file> <table>")
             return
 
-        file, table_name = args
+        file_path, table_name = args
 
-        if (self.outFormat != 'csv' and self.outFormat != 'excel'):
+        if self.outFormat not in ['csv', 'excel']:
             utils.write_output('Current mode isn\'t compatible with that operation')
             return
         
-        self.import_data(file, table_name)
+        try:
+            self.import_data(file_path, table_name)
+            utils.write_output(f"Data imported from {file_path} to table {table_name} successfully.")
+        except Exception as e:
+            utils.write_output(f"Error during import: {e}")
 
 
     def do_read(self, arg):
@@ -245,17 +306,32 @@ class EdgeSQLShell(cmd.Cmd):
             return
 
         file_name = arg
-        self.read_sql_from_file(file_name)
+        try:
+            if Path(file_name).is_file():
+                self.read_sql_from_file(file_name)
+                utils.write_output(f"SQL statements from {file_name} executed successfully.")
+            else:
+                utils.write_output(f"Error: File '{file_name}' not found.")
+        except Exception as e:
+            utils.write_output(f"Error during execution: {e}")
 
     def execute_sql_command_multiline(self):
         """Execute a multiline command command."""
+        if not self.multiline_command:
+            return
+
         sql_command = ' '.join(self.multiline_command)
+        if not sql_command.endswith(';'):
+            utils.write_output("Error: Incomplete SQL command. End the command with ';'.")
+            return
+
         try:
             output = self.edgeSql.execute(sql_command)
             if output:
                 self.query_output(output['rows'], output['columns'])
         except Exception as e:
              utils.write_output(f"Error executing SQL command: {e}")
+
         self.multiline_command = []  # Reset multiline command buffer
 
 
@@ -266,24 +342,24 @@ class EdgeSQLShell(cmd.Cmd):
         Args:
             arg (str): Optional arguments '--schema-only', '--data-only', or table name(s).
         """
-        dump = 0x0
-
-        args = arg.split()
+        dump_type = DUMP_NONE
 
         if not arg:
             self.dump()
         else:
+            args = arg.split()
+
             if '--schema-only' in args:
                 args.remove('--schema-only')
-                dump = dump | DUMP_SCHEMA_ONLY
+                dump_type = dump_type | DUMP_SCHEMA_ONLY
             if '--data-only' in args:
                 args.remove('--data-only')
-                dump = dump | DUMP_DATA_ONLY
+                dump_type = dump_type | DUMP_DATA_ONLY
 
-            if dump == 0x0:
+            if dump_type == DUMP_NONE:
                 self.dump(arg=args, dump=DUMP_ALL)
             else:
-                self.dump(arg=args,dump=dump)
+                self.dump(arg=args,dump=dump_type)
 
 
     def dump_table(self, table_name, dump=DUMP_ALL):
@@ -386,7 +462,6 @@ class EdgeSQLShell(cmd.Cmd):
 
         except Exception as e:
             utils.write_output(f"Error dumping database: {e}")
-        
 
     def default(self, arg):
         """Execute SQL command and handle multiline input."""
@@ -589,6 +664,7 @@ if __name__ == "__main__":
         utils.write_output("Authorization token not found in environment variable AZION_TOKEN")
         exit(1)
 
-    edgSql = edgesql.EdgeSQL(token)
+    base_url = os.environ.get('AZION_BASE_URL')
+    edgSql = edgesql.EdgeSQL(token, base_url)
     azion_db_shell = EdgeSQLShell(edgSql)
     azion_db_shell.cmdloop("Welcome to EdgeSQL Shell. Type '.exit' to quit.")
