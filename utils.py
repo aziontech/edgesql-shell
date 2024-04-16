@@ -16,7 +16,7 @@ def write_output(message, destination='', mode='a'):
         else:
             with open(destination, mode) as file:
                 file.write(message+'\n')
-            print("Message written successfully.")
+            #print("Message written successfully.")
     except Exception as e:
         print(f"Error writing message to file: {e}")
 

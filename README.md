@@ -73,6 +73,14 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .import file table                               # Import data from FILE into TABLE
    .exit				                 # Exit the EdgeSQL Shell
    ```
+   
+### Optional Settings
+Set a custom Azion API entrypoint as an environment variable:
+ 
+ ```bash
+    export AZION_BASE_URL="custom.api.azion.com"
+ ```
+
 
 ## Contributing
 
