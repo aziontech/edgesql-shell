@@ -3,12 +3,14 @@ import cmd
 import utils
 import utils_sql as sql
 import edgesql
+import edgesql_kaggle as ek
 from tabulate import tabulate
 import signal
 from pathlib import Path
 from pathvalidate import ValidationError, validate_filepath
 import pandas as pd
 from io import StringIO
+from tqdm import tqdm
 
 DUMP_SCHEMA_ONLY = 0x1
 DUMP_DATA_ONLY = 0x1 << 1
@@ -52,6 +54,7 @@ class EdgeSQLShell(cmd.Cmd):
             ".output": self.do_output,
             ".mode": self.do_mode,
             ".import": self.do_import,
+            ".import-kaggle": self.do_import_kaggle,
         }
         return command_mapping
 
@@ -151,7 +154,7 @@ class EdgeSQLShell(cmd.Cmd):
         Args:
             arg (str): The name of the table to describe.
         """
-        if not arg or len(arg) > 2:
+        if not arg:
             utils.write_output("Usage: .schema <table_name>")
             return
         else: 
@@ -272,6 +275,10 @@ class EdgeSQLShell(cmd.Cmd):
         Args:
             arg (str): File path and table name separated by space.
         """
+        if not self.edgeSql.get_current_database_id():
+            utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
+            return
+        
         if not arg:
             utils.write_output("Usage: .import <file> <table>")
             return
@@ -290,6 +297,34 @@ class EdgeSQLShell(cmd.Cmd):
         try:
             self.import_data(file_path, table_name)
             utils.write_output(f"Data imported from {file_path} to table {table_name} successfully.")
+        except Exception as e:
+            utils.write_output(f"Error during import: {e}")
+
+    def do_import_kaggle(self, arg):
+        """
+        Import data from FILE into TABLE.
+
+        Args:
+            arg (str): File path and table name separated by space.
+        """
+        if not self.edgeSql.get_current_database_id():
+            utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
+            return
+        
+        if not arg:
+            utils.write_output("Usage: .import-kaggle <dataset> <data_name> <table>")
+            return
+        
+        args = arg.split()
+        if len(args) != 3:
+            utils.write_output("Usage: .import-kaggle <dataset> <data_name> <table>")
+            return
+
+        dataset, data_name, table_name = args
+        
+        try:
+            if self.import_data_kaggle(dataset, data_name, table_name):
+                utils.write_output(f"Dataset {dataset} - {data_name} imported from Kaggle to table {table_name} successfully.")
         except Exception as e:
             utils.write_output(f"Error during import: {e}")
 
@@ -362,13 +397,14 @@ class EdgeSQLShell(cmd.Cmd):
                 self.dump(arg=args,dump=dump_type)
 
 
-    def dump_table(self, table_name, dump=DUMP_ALL):
+    def dump_table(self, table_name, dump=DUMP_ALL, batch_size=1000):
         """
         Dump table structure and data as SQL.
 
         Args:
             table_name (str): Name of the table to dump.
             dump (int, optional): Flag indicating what to dump (schema only, data only, or both). Defaults to DUMP_ALL.
+            batch_size (int, optional): Size of each data batch for fetching. Defaults to 1000.
         """
         try:
             # Check if the table exists
@@ -411,15 +447,23 @@ class EdgeSQLShell(cmd.Cmd):
 
             # Dump data if requested
             if dump & DUMP_DATA_ONLY:
-                data_output = self.edgeSql.execute(f'SELECT * FROM {table_name};')
-                if data_output:
-                    df = pd.DataFrame(data_output['rows'], columns=data_output['columns'])
-                    sql_commands = sql.generate_insert_sql(df, table_name)
-                    for cmd in sql_commands:
-                        utils.write_output(cmd, self.output)
+                # Get total count of rows in the table
+                count_output = self.edgeSql.execute(f'SELECT COUNT(*) FROM {table_name};')
+                if count_output and count_output['rows']:
+                    total_rows = count_output['rows'][0][0]
 
-            # Write an empty line to separate tables
-            utils.write_output("", self.output)
+                    # Fetch data in batches and generate SQL insert statements
+                    offset = 0
+                    while offset < total_rows:
+                        limit = min(batch_size, total_rows - offset)  # Calculate limit for this batch
+                        data_output = self.edgeSql.execute(f'SELECT * FROM {table_name} LIMIT {limit} OFFSET {offset};')
+                        if data_output:
+                            df = pd.DataFrame(data_output['rows'], columns=data_output['columns'])
+                            sql_commands = sql.generate_insert_sql(df, table_name)
+                            for cmd in sql_commands:
+                                utils.write_output(cmd, self.output)
+                        
+                        offset += batch_size
 
         except Exception as e:
             utils.write_output(f"Error dumping table '{table_name}': {e}")
@@ -589,7 +633,7 @@ class EdgeSQLShell(cmd.Cmd):
             utils.write_output(f'Error executing SQL statements from file: {e}')
 
 
-    def import_data(self, file, table_name):
+    def import_data(self, file, table_name, chunk_size=1000):
         """
         Import data from a file into a database table.
 
@@ -625,40 +669,129 @@ class EdgeSQLShell(cmd.Cmd):
             elif self.outFormat == 'excel':
                 df = pd.read_excel(file)
             else:
-                utils.write_output("Error: Unsupported output format specified.")
-                return
-        except FileNotFoundError:
-            utils.write_output(f'Error: The specified file "{file}" does not exist.')
-            return
+                raise ValueError("Unsupported output format. Supported formats are CSV and Excel.")
+    
+            self._import_data(df, table_name, chunk_size)
+        except FileNotFoundError as e:
+            utils.write_output(str(e))
         except pd.errors.EmptyDataError:
-            utils.write_output(f'Error: The specified file "{file}" is empty or contains no data.')
-            return
+            utils.write_output(f'The specified file "{file}" is empty or contains no data.')
         except pd.errors.ParserError:
-            utils.write_output(f'Error: An error occurred while parsing "{file}". Please check if the file format is correct.')
-            return
-
-        try:
-            # Check if the table exists
-            if not self.edgeSql.exist_table(table_name):
-                # If the table does not exist, create one
-                create_sql = sql.generate_create_table_sql(df, table_name)
-                self.edgeSql.execute(create_sql)
-            
-            # Generate SQL for data insertion
-            insert_sql = sql.generate_insert_sql(df, table_name)
-            self.edgeSql.execute(insert_sql)
+            utils.write_output(f'An error occurred while parsing "{file}". Please check if the file format is correct.')
         except Exception as e:
             utils.write_output(f'Error importing data: {e}')
 
+    def _import_data(self, dataset, table_name, chunk_size=1000):
+        """
+        Import data into a specified database table in chunks with a progress bar.
 
-def signal_handler(sig, frame):
-    """Handle Ctrl+C signal."""
-    utils.write_output('\nCtrl+C pressed. Exiting EdgeSQL Shell.')
-    exit()
+        Args:
+            dataset (pandas.DataFrame): The dataset to be imported.
+            table_name (str): The name of the database table where the data will be imported.
+            chunk_size (int): Size of each data chunk for insertion. Default is 1000.
+
+        Returns:
+            bool: True if the import is successful, False otherwise.
+        """
+        try:
+            # Check if the table exists and create it if necessary
+            if not self.edgeSql.exist_table(table_name):
+                create_sql = sql.generate_create_table_sql(dataset, table_name)
+                self.edgeSql.execute(create_sql)
+
+            total_chunks = len(dataset) // chunk_size + (1 if len(dataset) % chunk_size != 0 else 0)
+
+            with tqdm(total=total_chunks, desc="Progress", unit="chunk") as progress_bar:
+                for i, chunk in enumerate([dataset[i:i + chunk_size] for i in range(0, len(dataset), chunk_size)], 1):
+                    # Generate SQL for data insertion
+                    insert_sql = sql.generate_insert_sql(chunk, table_name)
+                    self.edgeSql.execute(insert_sql)
+
+                    # Update progress bar
+                    progress_bar.update(1)
+
+            return True  # Import successful
+        except Exception as e:
+            utils.write_output(f'Error inserting data into database: {e}')
+            return False
+
+    def import_data_kaggle(self, dataset_name, data_file, table_name, chunk_size=1000):
+        """
+        Import data from a Kaggle dataset into a specified database table.
+
+        Args:
+            dataset_name (str): The name of the dataset on Kaggle to be imported.
+            table_name (str): The name of the database table where the data will be imported.
+
+        Returns:
+            bool: True if the import is successful, False otherwise.
+        """
+        if not table_name:
+            utils.write_output("Error: Please provide a valid table name.")
+            return False
+        
+        if not data_file:
+            utils.write_output("Error: Please provide a valid data file from dataset.")
+            return False
+        
+        if not dataset_name:
+            utils.write_output("Error: Please provide a valid dataset name.")
+            return False
+        
+        username = os.environ.get('KAGGLE_USERNAME')
+        if username is None:
+            utils.write_output("Kaggle username account not found in environment variable KAGGLE_USERNAME")
+            return False
+        
+        api_key = os.environ.get('KAGGLE_KEY')
+        if api_key is None:
+            utils.write_output("Kaggle API Key not found in environment variable KAGGLE_KEY")
+            return False
+        
+        try:
+            # Initialize Kaggle API
+            kaggle = ek.EdgSQLKaggle(username, api_key)
+            
+            # Import dataset from Kaggle
+            import_success = self._import_kaggle_dataset(kaggle, dataset_name, data_file, table_name, chunk_size)
+            if not import_success:
+                utils.write_output(f"Error: Failed to import dataset '{dataset_name}' from Kaggle.")
+                return False
+            
+            return True  # Successful import
+        except Exception as e:
+            utils.write_output(f'Error importing Kaggle data: {e}')
+            return False  # Import failed
+
+
+    def _import_kaggle_dataset(self, kaggle, dataset_name, data_file, table_name, chunk_size):
+        """
+        Import dataset from Kaggle into a specified database table in chunks.
+
+        Args:
+            kaggle (kg.EdgSQLKaggle): Initialized Kaggle API object.
+            dataset_name (str): The name of the dataset on Kaggle to be imported.
+            table_name (str): The name of the database table where the data will be imported.
+            chunk_size (int): Size of each data chunk for insertion.
+
+        Returns:
+            bool: True if the import is successful, False otherwise.
+        """
+        # Import dataset from Kaggle
+        import_success = kaggle.import_dataset(dataset_name, data_file)
+        if not import_success:
+            return False
+        
+        dataset = kaggle.get_dataset()
+        if dataset is None:
+            utils.write_output("Error: No dataset found.")
+            return False
+
+        return self._import_data(dataset, table_name, chunk_size)
 
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGINT, utils.signal_handler)
     token = os.environ.get('AZION_TOKEN')
     if token is None:
         utils.write_output("Authorization token not found in environment variable AZION_TOKEN")

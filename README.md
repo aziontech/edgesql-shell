@@ -16,7 +16,8 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 - Transaction support
 - Output to standard output or file
 - Output on formats Tabular, CSV, HTML, Markdown, and Raw
-- Import CSV capability
+- Import CSV or XLSX capability
+- Import data from Kaggle Datasets
 - Error handling and graceful exit
 
 ## Requirements
@@ -71,14 +72,22 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .output stdout|file_path                         # Set the output to stdout or file
    .mode tabular|csv|html|markdown|raw              # Set output mode
    .import file table                               # Import data from FILE into TABLE
+.import-kaggle dataset data_file table           # Import data from Kaggle Dataset into TABLE
    .exit				                 # Exit the EdgeSQL Shell
    ```
    
 ### Optional Settings
-Set a custom Azion API entrypoint as an environment variable:
+1. Set a custom Azion API entrypoint as an environment variable:
  
  ```bash
     export AZION_BASE_URL="custom.api.azion.com"
+ ```
+ 
+2. Set Kaggle credentials as an environment varaiable:
+ 
+ ```bash
+    export KAGGLE_USERNAME="username"
+    export KAGGLE_KEY="kaggle_api_key"
  ```
 
 
