@@ -84,7 +84,7 @@ class EdgeSQL:
             utils.write_output("Invalid SQL commands format.")
             return
 
-        url = f'{self._base_url}/{self._current_database_id}/execute'
+        url = f'{self._base_url}/{self._current_database_id}/query'
         data = {"statements": sql_commands}
         self.transaction = False
 
@@ -369,10 +369,13 @@ class EdgeSQL:
         Returns:
             bool: True if the table exists, False otherwise.
         """
-        buffer = self.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
-        if buffer:
+        query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';"
+        result = self.execute(query)
+
+        if isinstance(result, dict) and 'rows' in result and len(result['rows']) > 0:
             return True
-        return False
+        else:
+            return False
 
     def __headers(self):
         """

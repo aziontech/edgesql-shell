@@ -84,6 +84,8 @@ def generate_insert_sql(df, table_name):
             if pd.isnull(value):
                 values.append("NULL")
             elif isinstance(value, str):
+                # Escape single quotes within the string by doubling them
+                value = value.replace("'", "''")
                 values.append(f"'{value}'")
             else:
                 values.append(str(value))

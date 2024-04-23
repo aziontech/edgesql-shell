@@ -41,3 +41,8 @@ def contains_any(arg, substrings, case_sensitive=False):
     except Exception as e:
         print(f"Error checking string for substrings: {e}")
         return False
+
+def signal_handler(sig, frame):
+    """Handle Ctrl+C signal."""
+    write_output('\nCtrl+C pressed. Exiting EdgeSQL Shell.')
+    exit()
