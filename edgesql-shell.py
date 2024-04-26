@@ -76,13 +76,21 @@ class EdgeSQLShell(cmd.Cmd):
         setattr(self, f"do_{command_name}", method.__get__(self))
         self.command_mapping[f".{command_name}"] = method.__get__(self)
 
-    def complete(self, text, line, begidx, endidx):
-        """Tab-completion for the help command."""
+    def get_all_commands(self, text):
+        """Get all commands including dynamically loaded commands."""
         available_commands = list(self.command_mapping.keys())
         if text:
             return [cmd for cmd in available_commands if cmd.startswith(text)]
         else:
             return available_commands
+    
+    def completenames(self, text, *ignored):
+        """Tab-completion for all commands."""
+        return self.get_all_commands(text)
+
+    def complete_help(self, text, line, begidx, endidx):
+        """Tab-completion for the help command."""
+        return self.get_all_commands(text)
 
     def do_help(self, arg):
         """
@@ -110,11 +118,8 @@ class EdgeSQLShell(cmd.Cmd):
             command_list = sorted(self.command_mapping.keys())
             print("Documented commands (type help <topic>):")
             print("=" * 40)
-            for command in command_list:
-                if command.startswith("."):
-                    print(command[:], end="  ")
+            super().columnize(command_list)
             print()
-
 
     def update_prompt(self):
         """Update the command prompt."""
