@@ -72,13 +72,13 @@ def importer(db_type, source_table):
 
     if not all([db_user, db_password, db_host, db_database]):
         raise Exception(f"{db_type.upper()} environmental variables not set correctly.")
-    
+
     # Determine if TLS should be used based on the connection type and SSL parameters
     if ssl_ca is None or ssl_cert is None or ssl_key is None or is_remote(db_host) == False:
         use_tls = False
     else:
         use_tls = True
-    
+
     # Set default ports for MySQL and PostgreSQL if not provided in the environment variables
     if db_type == 'mysql' and db_port == 0:
         db_port = 3306  # Default MySQL port is 3306

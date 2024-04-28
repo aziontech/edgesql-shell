@@ -161,7 +161,7 @@ class EdgeSQL:
             response = requests.get(self._base_url, headers=self.__headers())
             response.raise_for_status()
             json_data = response.json()
-        
+
             if response.status_code == HTTPStatus.OK:  # 200
                 databases = json_data.get('results')
                 if databases:
@@ -389,4 +389,3 @@ class EdgeSQL:
             'Authorization': f'Token {self._token}',
             'Content-Type': 'application/json'
         }
-

@@ -15,14 +15,14 @@ def sql_to_list(sql_buffer):
         # Verifica se a entrada é uma string
         if not isinstance(sql_buffer, str):
             raise ValueError("Input must be a string")
-        
+
         # Use sqlparse's split method to split SQL commands
         # This handles cases like semicolons within strings or comments
         sql_commands = sqlparse.split(sql_buffer)
-        
+
         # Remove any leading or trailing whitespace from each command
         sql_commands = [cmd.strip() for cmd in sql_commands if cmd.strip()]
-        
+
         return sql_commands
     except Exception as e:
         print(f"Error splitting SQL commands: {e}")
@@ -60,7 +60,7 @@ def generate_create_table_sql(df, table_name):
         elif dtype == 'datetime64[ns]':
             columns.append(f"{column_name} TIMESTAMP")  # Map datetime to TIMESTAMP
         # Add more conditions as needed for other data types
-    
+
     sql = f"CREATE TABLE {table_name} (\n"
     sql += ",\n".join(columns)
     sql += "\n);"
@@ -97,7 +97,6 @@ def generate_insert_sql(df, table_name):
         sql_commands.append(sql)
     return sql_commands
 
-
 def format_sql(statement, reindent=True, keyword_case='upper'):
     """
     Format SQL statement using sqlparse library.
@@ -119,3 +118,4 @@ def format_sql(statement, reindent=True, keyword_case='upper'):
     except Exception as e:
         print(f"Error formatting SQL: {e}")
         return None
+    

@@ -73,7 +73,7 @@ class EdgSQLKaggle:
         if not self.api:
             utils.write_output('Error: Kaggle API not authenticated.')
             return False
-        
+
         try:
             # Download the Kaggle dataset
             self.api.dataset_download_file(dataset_name, data_file)

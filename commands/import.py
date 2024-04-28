@@ -40,7 +40,6 @@ def _import_data(edgeSql, dataset, table_name, chunk_size=1000):
         utils.write_output(f'Error inserting data into database: {e}')
         return False
 
-
 def do_import(shell, arg):
     """
     Import data from local files, Kaggle datasets, or databases into a database table.
@@ -62,7 +61,7 @@ def do_import(shell, arg):
     if not shell.edgeSql.get_current_database_id():
         utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
         return
-    
+
     args = arg.split()
 
     if len(args) < 4:
@@ -83,7 +82,7 @@ def do_import(shell, arg):
             if not table_name:
                 utils.write_output("Error: Table name cannot be empty.")
                 return
-            
+
             df = local.importer(file_type, file_path)
         elif sub_command == 'kaggle':    
             dataset = args[1]
@@ -93,7 +92,7 @@ def do_import(shell, arg):
             if not table_name:
                 utils.write_output("Error: Table name cannot be empty.")
                 return
-            
+
             df = kaggle.importer(dataset, data_name)
         elif sub_command == 'database':
             db_type = args[1]
@@ -103,7 +102,7 @@ def do_import(shell, arg):
             if not table_name:
                 utils.write_output("Error: Table name cannot be empty.")
                 return
-            
+
             df = database.importer(db_type, db_table_name)
         else:
             utils.write_output("Invalid arguments.")

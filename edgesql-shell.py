@@ -45,7 +45,7 @@ class EdgeSQLShell(cmd.Cmd):
             ".mode": self.do_mode,
         }
         return command_mapping
-    
+
     def import_commands_from_directory(self, directory):
         """Dynamically import and register commands from a specified directory."""
         for file_name in os.listdir(directory):
@@ -132,11 +132,10 @@ class EdgeSQLShell(cmd.Cmd):
         """Exit the shell."""
         utils.write_output("Exiting EdgeSQL Shell.")
         return True
-    
+
     def emptyline(self):
         """Ignore empty lines."""
         pass
-
 
     def do_output(self, arg):
         """
@@ -162,7 +161,6 @@ class EdgeSQLShell(cmd.Cmd):
             except ValidationError as e:
                 utils.write_output(f"Error: {e}")
                 return
-    
 
     def do_mode(self, arg):
         """
@@ -180,7 +178,6 @@ class EdgeSQLShell(cmd.Cmd):
 
         self.outFormat = arg_lower
         utils.write_output(f"Output mode set to: {arg_lower}")
-
 
     def execute_sql_command_multiline(self):
         """Execute a multiline command command."""
@@ -261,7 +258,6 @@ class EdgeSQLShell(cmd.Cmd):
         else:
             pass
 
-
     def query_output(self, rows, columns):
         """Format and output query results."""
         df = pd.DataFrame(rows,columns=columns)
@@ -306,7 +302,6 @@ class EdgeSQLShell(cmd.Cmd):
                 utils.write_output(buffer.getvalue(), self.output)
             else:
                 df.to_csv(self.output, sep=' ', index=False)
-
 
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, utils.signal_handler)
