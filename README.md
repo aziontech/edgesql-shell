@@ -16,8 +16,10 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 - Transaction support
 - Output to standard output or file
 - Output on formats Tabular, CSV, HTML, Markdown, and Raw
-- Import CSV or XLSX capability
-- Import data from Kaggle Datasets
+- Data Importation:
+	- From local files: CSV or XLSX capability
+	- From databases: Mysql or PostgreSQL
+	- From Kaggle Datasets
 - Error handling and graceful exit
 
 ## Requirements
@@ -71,22 +73,67 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .destroy <database_name>	                 #  Destroy a database by name
    .output stdout|file_path                         # Set the output to stdout or file
    .mode tabular|csv|html|markdown|raw              # Set output mode
-   .import parans table                               # Import data from local|kaggle into TABLE
+   .import params table                               # Import data from local|mysql|postgres|kaggle into TABLE
    .exit				                 # Exit the EdgeSQL Shell
    ```
    
-### Optional Settings
+### Other Settings
 1. Set a custom Azion API entrypoint as an environment variable:
  
  ```bash
     export AZION_BASE_URL="custom.api.azion.com"
  ```
  
-2. Set Kaggle credentials as an environment varaiable:
+2. Set **Kaggle** credentials as an environment varaiable:
  
  ```bash
     export KAGGLE_USERNAME="username"
     export KAGGLE_KEY="kaggle_api_key"
+ ```
+ 
+3. Set **Mysql** credentials as an environment varaiable:
+ 
+ ```bash
+    export MYSQL_USERNAME="username"
+    export MYSQL_PASSWORD="password"
+    export MYSQL_HOST="host_address"
+    export MYSQL_DATABASE="database"
+ ```
+ 
+ Optional settings:
+ 
+ ```bash
+    export MYSQL_PORT=<port>
+   
+    # For TLS connection
+    export MYSQL_SSL_CA="ssl_ca"
+    export MYSQL_SSL_CERT="ssl_cert"
+    export MYSQL_SSL_KEY="ssl_key"
+    export MYSQL_SSL_KEY="ssl_key"
+    export MYSQL_SSL_VERIFY_CERT=True|False
+ ```
+ 
+
+4. Set **PostgreSQL** credentials as an environment varaiable:
+ 
+ ```bash
+    export POSTGRES_USERNAME="username"
+    export POSTGRES_PASSWORD="password"
+    export POSTGRES_HOST="host_address"
+    export POSTGRES_DATABASE="database"
+ ```
+
+ Optional settings:
+ 
+ ```bash
+    export POSTGRES_PORT=<port>
+   
+    # For TLS connection
+    export POSTGRES_SSL_CA="ssl_ca"
+    export POSTGRES_SSL_CERT="ssl_cert"
+    export POSTGRES_SSL_KEY="ssl_key"
+    export POSTGRES_SSL_KEY="ssl_key"
+    export POSTGRES_SSL_VERIFY_CERT=True|False
  ```
 
 
