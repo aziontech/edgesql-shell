@@ -78,7 +78,7 @@ def generate_insert_sql(df, table_name):
         list: A list of SQL INSERT statements.
     """
     sql_commands = []
-    for row in df.to_records(index=False):
+    for row in df.itertuples(index=False):
         values = []
         for value in row:
             if pd.isnull(value):
@@ -87,12 +87,16 @@ def generate_insert_sql(df, table_name):
                 # Escape single quotes within the string by doubling them
                 value = value.replace("'", "''")
                 values.append(f"'{value}'")
+            elif isinstance(value, pd.Timestamp):
+                # Format datetime values as strings
+                values.append(f"'{value}'")
             else:
                 values.append(str(value))
         values_str = ", ".join(values)
         sql = f"INSERT INTO {table_name} VALUES ({values_str});"
         sql_commands.append(sql)
     return sql_commands
+
 
 def format_sql(statement, reindent=True, keyword_case='upper'):
     """

@@ -3,7 +3,7 @@ import utils_sql as sql
 import requests
 from http import HTTPStatus
 
-BASE_URL = 'https://api.azion.com/v4/edge_sql/schemas'
+BASE_URL = 'https://api.azion.com/v4/edge_sql/databases'
 
 
 class EdgeSQL:
