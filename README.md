@@ -73,7 +73,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .destroy <database_name>	                 #  Destroy a database by name
    .output stdout|file_path                         # Set the output to stdout or file
    .mode tabular|csv|html|markdown|raw              # Set output mode
-   .import params table                               # Import data from local|mysql|postgres|kaggle into TABLE
+   .import params table                             # Import data from local|mysql|postgres|kaggle into TABLE
    .exit				                 # Exit the EdgeSQL Shell
    ```
    
