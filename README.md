@@ -9,8 +9,13 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 3. [Installation](#installation)
 4. [Usage](#usage)
 5. [Other Settings](#other-settings)
-6. [Contributing](#contributing)
-7. [License](#license)
+   - [Setting Custom Azion API Entrypoint](`#setting-custom-azion-api-entrypoint`)
+   - [Setting Kaggle Credentials](`#setting-kaggle-credentials`)
+   - [Setting MySQL Credentials](`#setting-mysql-credentials`)
+   - [Setting PostgreSQL Credentials](`#setting-postgresql-credentials`)
+   - [Setting Turso Credentials](`#setting-turso-credentials`)
+7. [Contributing](#contributing)
+8. [License](#license)
 
 ## Features
 
@@ -94,7 +99,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    ```
    
 ### Other Settings
-1. Set a custom Azion API entrypoint as an environment variable:
+1. Set a custom Azion API entry point as an environment variable:
  
  ```bash
    export AZION_BASE_URL="custom.api.azion.com"
