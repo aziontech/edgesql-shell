@@ -90,7 +90,7 @@ class EdgeSQL:
 
         try:
             response = requests.post(url, json=data, headers=self.__headers())
-            json_data = response.json()
+            response.raise_for_status()
             json_data = response.json()
 
             if response.status_code == HTTPStatus.OK:  # 200
