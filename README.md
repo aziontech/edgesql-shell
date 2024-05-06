@@ -9,11 +9,11 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 3. [Installation](#installation)
 4. [Usage](#usage)
 5. [Other Settings](#other-settings)
-   - [Setting Custom Azion API Entrypoint](`#setting-custom-azion-api-entrypoint`)
-   - [Setting Kaggle Credentials](`#setting-kaggle-credentials`)
-   - [Setting MySQL Credentials](`#setting-mysql-credentials`)
-   - [Setting PostgreSQL Credentials](`#setting-postgresql-credentials`)
-   - [Setting Turso Credentials](`#setting-turso-credentials`)
+   - [Setting Custom Azion API Entrypoint](#setting-custom-azion-api-entrypoint)
+   - [Setting Kaggle Credentials](#setting-kaggle-credentials)
+   - [Setting MySQL Credentials](#setting-mysql-credentials)
+   - [Setting PostgreSQL Credentials](#setting-postgresql-credentials)
+   - [Setting Turso Credentials](#setting-turso-credentials)
 7. [Contributing](#contributing)
 8. [License](#license)
 
@@ -98,21 +98,21 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .exit				                 # Exit the EdgeSQL Shell
    ```
    
-### Other Settings
-1. Set a custom Azion API entry point as an environment variable:
+## Other Settings
+### Setting Custom Azion API Entrypoint ###
  
  ```bash
    export AZION_BASE_URL="custom.api.azion.com"
  ```
  
-2. Set **Kaggle** credentials as an environment varaiable:
+### Setting Kaggle Credentials ###
  
  ```bash
    export KAGGLE_USERNAME="username"
    export KAGGLE_KEY="kaggle_api_key"
  ```
  
-3. Set **Mysql** credentials as an environment varaiable:
+### Setting MySQL Credentials ###
  
  ```bash
    export MYSQL_USERNAME="username"
@@ -135,7 +135,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
  ```
  
 
-4. Set **PostgreSQL** credentials as an environment varaiable:
+### Setting PostgreSQL Credentials ###
  
  ```bash
    export POSTGRES_USERNAME="username"
@@ -157,7 +157,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    export POSTGRES_SSL_VERIFY_CERT=True|False
  ```
 
-5. Set **Turso** credentials as an environment varaiable:
+### Setting Turso Credentials ###
 
   ```bash
    export TURSO_DATABASE_URL=<https://<db_name>-<organization>.turso.io
