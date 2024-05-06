@@ -4,6 +4,7 @@ from tqdm import tqdm
 from commands import import_local as local
 from commands import import_kaggle as kaggle
 from commands import import_database as database
+from commands import import_turso as turso
 
 def _import_data(edgeSql, dataset, table_name, chunk_size=1000):
     """
@@ -51,11 +52,13 @@ def do_import(shell, arg):
         .import local <csv|xlsx> <file_path> <table_name>: Import data from a local CSV or Excel file.
         .import kaggle <dataset> <data_name> <table_name>: Import data from a Kaggle dataset.
         .import database <mysql|postgresql> <source_table> <table_name>: Import data from a database table.
+        .import turso <database> <source_table> <table_name>: Import data from Turso database.
 
     Examples:
         .import local csv /path/to/file.csv my_table
         .import kaggle joonasyoon/google-doodles list.csv list
         .import database mysql source_table_name my_table
+        .import turso <database> <source_table> <table_name>
     """
 
     if not shell.edgeSql.get_current_database_id():
@@ -69,6 +72,7 @@ def do_import(shell, arg):
         utils.write_output(".import local <csv|xlsx> <file_path> <table_name>")
         utils.write_output(".import kaggle <dataset> <data_name> <table_name>")
         utils.write_output(".import database <mysql|postgresql> <source_table> <table_name>")
+        utils.write_output(".import turso <database> <source_table> <table_name>")
         return
 
     sub_command = args[0]
@@ -104,6 +108,16 @@ def do_import(shell, arg):
                 return
 
             df = database.importer(db_type, db_table_name)
+        elif sub_command == 'turso':
+            db_name = args[1]
+            db_table_name = args[2]
+            table_name = args[3]
+
+            if not table_name:
+                utils.write_output("Error: Table name cannot be empty.")
+                return
+
+            df = turso.importer(db_name, db_table_name)
         else:
             utils.write_output("Invalid arguments.")
             return

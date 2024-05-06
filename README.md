@@ -20,6 +20,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 	- From local files: CSV or XLSX capability
 	- From databases: Mysql or PostgreSQL
 	- From Kaggle Datasets
+	- From libSQL from Turso
 - Error handling and graceful exit
 
 ## Requirements
@@ -78,7 +79,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .destroy <database_name>	                 #  Destroy a database by name
    .output stdout|file_path                         # Set the output to stdout or file
    .mode tabular|csv|html|markdown|raw              # Set output mode
-   .import params table                             # Import data from local|mysql|postgres|kaggle into TABLE
+   .import params table                             # Import data from local|mysql|postgres|kaggle|turso into TABLE
    .exit				                 # Exit the EdgeSQL Shell
    ```
    
@@ -140,6 +141,33 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
     export POSTGRES_SSL_KEY="ssl_key"
     export POSTGRES_SSL_VERIFY_CERT=True|False
  ```
+
+5. Set **Turso** credentials as an environment varaiable:
+
+  ```bash
+	export TURSO_DATABASE_URL=<https://<db_name>-<organization>.turso.io
+	export TURSO_AUTH_TOKEN=<token>
+ ```
+ 
+  Optional settings:
+ 
+ ```bash
+ 	export TURSO_ENCRYPTION_KEY=<encryption_key>
+  ```	
+
+  Tips for getting database credentials:
+  
+  Get the database URL:
+  
+ ```bash
+ 	turso db show --url <database-name>
+  ```
+  
+ Get the database authentication token:
+ 
+  ```bash
+ 	turso db tokens create <database-name>
+  ```
 
 
 ## Contributing
