@@ -2,6 +2,16 @@
 
 EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion EdgeSQL Database, allowing users to manage databases, execute SQL commands, and perform various database operations.
 
+## EdgeSQL Shell Documentation Index
+
+1. [Features](#features)
+2. [Requirements](#requirements)
+3. [Installation](#installation)
+4. [Usage](#usage)
+5. [Other Settings](#other-settings)
+6. [Contributing](#contributing)
+7. [License](#license)
+
 ## Features
 
 - List all tables in a database
