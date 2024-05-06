@@ -87,72 +87,72 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 1. Set a custom Azion API entrypoint as an environment variable:
  
  ```bash
-    export AZION_BASE_URL="custom.api.azion.com"
+   export AZION_BASE_URL="custom.api.azion.com"
  ```
  
 2. Set **Kaggle** credentials as an environment varaiable:
  
  ```bash
-    export KAGGLE_USERNAME="username"
-    export KAGGLE_KEY="kaggle_api_key"
+   export KAGGLE_USERNAME="username"
+   export KAGGLE_KEY="kaggle_api_key"
  ```
  
 3. Set **Mysql** credentials as an environment varaiable:
  
  ```bash
-    export MYSQL_USERNAME="username"
-    export MYSQL_PASSWORD="password"
-    export MYSQL_HOST="host_address"
-    export MYSQL_DATABASE="database"
+   export MYSQL_USERNAME="username"
+   export MYSQL_PASSWORD="password"
+   export MYSQL_HOST="host_address"
+   export MYSQL_DATABASE="database"
  ```
  
  Optional settings:
  
  ```bash
-    export MYSQL_PORT=<port>
+   export MYSQL_PORT=<port>
    
-    # For TLS connection
-    export MYSQL_SSL_CA="ssl_ca"
-    export MYSQL_SSL_CERT="ssl_cert"
-    export MYSQL_SSL_KEY="ssl_key"
-    export MYSQL_SSL_KEY="ssl_key"
-    export MYSQL_SSL_VERIFY_CERT=True|False
+   # For TLS connection
+   export MYSQL_SSL_CA="ssl_ca"
+   export MYSQL_SSL_CERT="ssl_cert"
+   export MYSQL_SSL_KEY="ssl_key"
+   export MYSQL_SSL_KEY="ssl_key"
+   export MYSQL_SSL_VERIFY_CERT=True|False
  ```
  
 
 4. Set **PostgreSQL** credentials as an environment varaiable:
  
  ```bash
-    export POSTGRES_USERNAME="username"
-    export POSTGRES_PASSWORD="password"
-    export POSTGRES_HOST="host_address"
-    export POSTGRES_DATABASE="database"
+   export POSTGRES_USERNAME="username"
+   export POSTGRES_PASSWORD="password"
+   export POSTGRES_HOST="host_address"
+   export POSTGRES_DATABASE="database"
  ```
 
  Optional settings:
  
  ```bash
-    export POSTGRES_PORT=<port>
+   export POSTGRES_PORT=<port>
    
-    # For TLS connection
-    export POSTGRES_SSL_CA="ssl_ca"
-    export POSTGRES_SSL_CERT="ssl_cert"
-    export POSTGRES_SSL_KEY="ssl_key"
-    export POSTGRES_SSL_KEY="ssl_key"
-    export POSTGRES_SSL_VERIFY_CERT=True|False
+   # For TLS connection
+   export POSTGRES_SSL_CA="ssl_ca"
+   export POSTGRES_SSL_CERT="ssl_cert"
+   export POSTGRES_SSL_KEY="ssl_key"
+   export POSTGRES_SSL_KEY="ssl_key"
+   export POSTGRES_SSL_VERIFY_CERT=True|False
  ```
 
 5. Set **Turso** credentials as an environment varaiable:
 
   ```bash
-	export TURSO_DATABASE_URL=<https://<db_name>-<organization>.turso.io
-	export TURSO_AUTH_TOKEN=<token>
+   export TURSO_DATABASE_URL=<https://<db_name>-<organization>.turso.io
+   export TURSO_AUTH_TOKEN=<token>
  ```
  
   Optional settings:
  
  ```bash
- 	export TURSO_ENCRYPTION_KEY=<encryption_key>
+   export TURSO_ENCRYPTION_KEY=<encryption_key>
   ```	
 
   Tips for getting database credentials:
@@ -160,13 +160,13 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
   Get the database URL:
   
  ```bash
- 	turso db show --url <database-name>
+   turso db show --url <database-name>
   ```
   
  Get the database authentication token:
  
   ```bash
- 	turso db tokens create <database-name>
+   turso db tokens create <database-name>
   ```
 
 
