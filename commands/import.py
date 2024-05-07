@@ -71,7 +71,8 @@ def do_import(shell, arg):
         utils.write_output("Usage:")
         utils.write_output(".import local <csv|xlsx> <file_path> <table_name>")
         utils.write_output(".import kaggle <dataset> <data_name> <table_name>")
-        utils.write_output(".import database <mysql|postgresql> <source_table> <table_name>")
+        utils.write_output(".import mysql <database> <source_table> <table_name>")
+        utils.write_output(".import postgresql <database> <source_table> <table_name>")
         utils.write_output(".import turso <database> <source_table> <table_name>")
         return
 
@@ -98,8 +99,8 @@ def do_import(shell, arg):
                 return
 
             df = kaggle.importer(dataset, data_name)
-        elif sub_command == 'database':
-            db_type = args[1]
+        elif sub_command in ['mysql','postgres']:
+            db_name = args[1]
             db_table_name = args[2]
             table_name = args[3]
 
@@ -107,7 +108,7 @@ def do_import(shell, arg):
                 utils.write_output("Error: Table name cannot be empty.")
                 return
 
-            df = database.importer(db_type, db_table_name)
+            df = database.importer(sub_command, db_name, db_table_name)
         elif sub_command == 'turso':
             db_name = args[1]
             db_table_name = args[2]

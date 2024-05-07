@@ -45,7 +45,7 @@ def fetch_data_from_table(cursor, source_table):
     cursor.execute(query)
     return cursor.fetchall()
 
-def importer(db_type, source_table):
+def importer(db_type, db_database, source_table):
     """
     Import data from a database table into a Pandas DataFrame.
 
@@ -64,7 +64,6 @@ def importer(db_type, source_table):
     db_password = os.environ.get(f'{db_type.upper()}_PASSWORD')
     db_host = os.environ.get(f'{db_type.upper()}_HOST')
     db_port = int(os.environ.get(f'{db_type.upper()}_PORT', 0))  # Default port set to 0 initially
-    db_database = os.environ.get(f'{db_type.upper()}_DATABASE')
     ssl_ca = os.environ.get(f'{db_type.upper()}_SSL_CA')
     ssl_cert = os.environ.get(f'{db_type.upper()}_SSL_CERT')
     ssl_key = os.environ.get(f'{db_type.upper()}_SSL_KEY')
