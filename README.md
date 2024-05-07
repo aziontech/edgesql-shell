@@ -118,7 +118,6 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    export MYSQL_USERNAME="username"
    export MYSQL_PASSWORD="password"
    export MYSQL_HOST="host_address"
-   export MYSQL_DATABASE="database"
  ```
  
  Optional settings:
@@ -141,7 +140,6 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    export POSTGRES_USERNAME="username"
    export POSTGRES_PASSWORD="password"
    export POSTGRES_HOST="host_address"
-   export POSTGRES_DATABASE="database"
  ```
 
  Optional settings:
