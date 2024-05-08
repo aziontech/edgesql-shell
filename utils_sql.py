@@ -43,6 +43,9 @@ def generate_create_table_sql(df, table_name):
     Returns:
         str: A SQL CREATE TABLE statement.
     """
+    # Replace spaces with underscores in column names
+    df.columns = df.columns.str.replace(' ', '_')
+
     columns = []
     for column_name, dtype in df.dtypes.items():
         if dtype == 'object':
@@ -56,7 +59,7 @@ def generate_create_table_sql(df, table_name):
         elif dtype == 'float64':
             columns.append(f"{column_name} REAL")
         elif dtype == 'bool':
-            columns.append(f"{column_name} INTEGER")  # Mapeia para INTEGER
+            columns.append(f"{column_name} INTEGER")  # Map bool to INTEGER
         elif dtype == 'datetime64[ns]':
             columns.append(f"{column_name} TIMESTAMP")  # Map datetime to TIMESTAMP
         # Add more conditions as needed for other data types
@@ -65,6 +68,7 @@ def generate_create_table_sql(df, table_name):
     sql += ",\n".join(columns)
     sql += "\n);"
     return sql
+
 
 def generate_insert_sql(df, table_name):
     """
