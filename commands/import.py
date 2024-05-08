@@ -51,13 +51,14 @@ def do_import(shell, arg):
     Command Formats:
         .import local <csv|xlsx> <file_path> <table_name>: Import data from a local CSV or Excel file.
         .import kaggle <dataset> <data_name> <table_name>: Import data from a Kaggle dataset.
-        .import database <mysql|postgresql> <source_table> <table_name>: Import data from a database table.
+        .import mysql <database> <source_table> <table_name>: Import data from a MySQL database table.
+        .import postgresql <database> <source_table> <table_name>: Import data from PostgreSQL database table.
         .import turso <database> <source_table> <table_name>: Import data from Turso database.
 
     Examples:
         .import local csv /path/to/file.csv my_table
         .import kaggle joonasyoon/google-doodles list.csv list
-        .import database mysql source_table_name my_table
+        .import mysql mydb_name source_table_name my_table
         .import turso <database> <source_table> <table_name>
     """
 
