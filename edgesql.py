@@ -137,8 +137,6 @@ class EdgeSQL:
                         'columns': ['ID', 'Name', 'Status', 'Created At', 'Updated At']
                     }
                     return db_list
-                else:
-                    utils.write_output("No databases found.")
             else:
                 msg_err = json_data.get('detail', 'Unknown error')
                 raise Exception(f'{msg_err}')
@@ -202,9 +200,6 @@ class EdgeSQL:
                     for db in databases: #json_data['results']:
                         if db.get('name') == database_name:
                             return db.get('id')
-                    utils.write_output(f"Database '{database_name}' not found.")
-                else:
-                    utils.write_output("No databases found.")
             else:
                 msg_err = json_data.get('detail', 'Unknown error')
                 raise Exception(f'{msg_err}')
