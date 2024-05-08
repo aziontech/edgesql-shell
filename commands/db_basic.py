@@ -2,17 +2,22 @@ import utils
 import utils_sql as sql
 
 def do_tables(shell, arg):
-        """List all tables."""
+    """List all tables."""
+    try:
         output = shell.edgeSql.list_tables()
-        if output is not None:
-            rows = output.get('rows')
-            columns = output.get('columns')
-            if rows and columns:
-                shell.query_output(rows, columns)
-            else:
-                utils.write_output("No tables available.")
+    except Exception as e:
+        utils.write_output(f"Error: {e}")
+        return
+
+    if output is not None:
+        rows = output.get('rows')
+        columns = output.get('columns')
+        if rows and columns:
+            shell.query_output(rows, columns)
         else:
-            utils.write_output("Error listing tables.")
+            utils.write_output("No tables available.")
+    else:
+        utils.write_output("Error listing tables.")
 
 
 def do_schema(shell, arg):
@@ -28,7 +33,12 @@ def do_schema(shell, arg):
     else: 
         table_name = arg.strip()
     
-    output = shell.edgeSql.describe_table(table_name)
+    try:
+        output = shell.edgeSql.describe_table(table_name)
+    except Exception as e:
+        utils.write_output(f"Error: {e}")
+        return
+
     if output is not None:
         rows = output.get('rows')
         columns = output.get('columns')

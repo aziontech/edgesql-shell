@@ -4,17 +4,20 @@ from tabulate import tabulate
 #command databases
 def do_databases(shell, arg):
     """List all databases."""
-    db_list = shell.edgeSql.list_databases()
-    if db_list:
-        databases = db_list.get('databases')
-        columns = db_list.get('columns')
-        if databases and columns:
-            formatted_table = tabulate(databases, headers=columns, tablefmt="fancy_grid")
-            utils.write_output(formatted_table, shell.output)
+    try:
+        db_list = shell.edgeSql.list_databases()
+        if db_list:
+            databases = db_list.get('databases')
+            columns = db_list.get('columns')
+            if databases and columns:
+                formatted_table = tabulate(databases, headers=columns, tablefmt="fancy_grid")
+                utils.write_output(formatted_table, shell.output)
+            else:
+                utils.write_output("Error: Invalid database information.")
         else:
-            utils.write_output("Error: Invalid database information.")
-    else:
-        utils.write_output("No databases found.")
+            utils.write_output("No databases found.")
+    except Exception as e:
+        utils.write_output(f"Error: {e}")
 
 #command .use
 def do_use(shell, arg):
@@ -44,14 +47,17 @@ def do_dbinfo(shell, arg):
         utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
         return
 
-    db_info = shell.edgeSql.get_database_info()
-    if db_info:
-        data = db_info.get('table_data')
-        columns = db_info.get('columns')
-        database_info = tabulate(data, headers=columns, tablefmt="fancy_grid")
-        utils.write_output(database_info, shell.output)
-    else:
-        utils.write_output("Error: Unable to fetch database information.")
+    try:
+        db_info = shell.edgeSql.get_database_info()
+        if db_info:
+            data = db_info.get('table_data')
+            columns = db_info.get('columns')
+            database_info = tabulate(data, headers=columns, tablefmt="fancy_grid")
+            utils.write_output(database_info, shell.output)
+        else:
+            utils.write_output("Error: Unable to fetch database information.")
+    except Exception as e:
+        utils.write_output(f"Error: {e}")
 
 #Command .create
 
@@ -104,11 +110,6 @@ def do_destroy(shell, arg):
         return
 
     try:
-        database_id = shell.edgeSql.get_database_id(database_name)
-        if not database_id:
-            utils.write_output(f"Database '{database_name}' not found.")
-            return
-        
-        shell.edgeSql.destroy_database(database_id)
+        shell.edgeSql.destroy_database(database_name)
     except Exception as e:
         utils.write_output(f"Error destroying database: {e}")

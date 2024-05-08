@@ -124,7 +124,8 @@ def do_import(shell, arg):
             return
 
         if df is not None and not df.empty:
-            _import_data(shell.edgeSql, df, table_name)
+           status  = _import_data(shell.edgeSql, df, table_name)
+           if status == True:
             utils.write_output(f"Data imported successfully into table '{table_name}'.")
         else:
             utils.write_output("Error: No data to import or import failed.")

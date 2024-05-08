@@ -69,11 +69,11 @@ class EdgeSQL:
         """
         output = None
         if self._current_database_id is None:
-            utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
+            raise Exception("No database selected. Use '.use <database_name>' to select a database.")
             return
 
         if not buffer:
-            utils.write_output("No SQL commands provided.")
+            raise Exception("No SQL commands provided.")
             return
 
         if isinstance(buffer, list):
@@ -81,7 +81,7 @@ class EdgeSQL:
         elif isinstance(buffer, str):
             sql_commands = sql.sql_to_list(buffer)
         else:
-            utils.write_output("Invalid SQL commands format.")
+            raise Exception("Invalid SQL commands format.")
             return
 
         url = f'{self._base_url}/{self._current_database_id}/query'
@@ -98,19 +98,19 @@ class EdgeSQL:
                 if result_data:
                     result = result_data[0]
                     if 'error' in result:
-                        utils.write_output(f'"Error:", {result.get("error")}')
+                        raise Exception(f'{result.get("error")}')
                     else:
                         results = result.get('results', {})
                         columns = results.get('columns', [])
                         rows = results.get('rows', [])
                         output = {'columns': columns, 'rows': rows}
                 else:
-                    utils.write_output("Error: Empty or invalid response data.")
+                    raise Exception("Empty or invalid response data.")
             else:
                 msg_err = json_data.get('error', 'Unknown error')
-                utils.write_output(f'{msg_err}')
+                raise Exception(f'{msg_err}')
         except requests.RequestException as e:
-            utils.write_output(f'Error: {e}')
+            raise Exception(f'{e}')
 
         return output
 
@@ -141,9 +141,9 @@ class EdgeSQL:
                     utils.write_output("No databases found.")
             else:
                 msg_err = json_data.get('detail', 'Unknown error')
-                utils.write_output(f'Error: {msg_err}')
+                raise Exception(f'{msg_err}')
         except requests.RequestException as e:
-            utils.write_output(f'Error: {e}')
+            raise Exception(f'{e}')
 
         return None
 
@@ -175,9 +175,9 @@ class EdgeSQL:
                     utils.write_output("No databases found.")
             else:
                 msg_err = json_data.get('detail', 'Unknown error')
-                utils.write_output(f'Error: {msg_err}')
+                raise Exception(f'{msg_err}')
         except requests.RequestException as e:
-            utils.write_output(f'Error: {e}')
+            raise Exception(f'{e}')
 
         return False
 
@@ -197,9 +197,9 @@ class EdgeSQL:
             json_data = response.json()
 
             if response.status_code == HTTPStatus.OK:  # 200
-                databases = json_data.get('results')
+                databases = json_data.get('results',[])
                 if databases:
-                    for db in json_data['results']:
+                    for db in databases: #json_data['results']:
                         if db.get('name') == database_name:
                             return db.get('id')
                     utils.write_output(f"Database '{database_name}' not found.")
@@ -207,9 +207,9 @@ class EdgeSQL:
                     utils.write_output("No databases found.")
             else:
                 msg_err = json_data.get('detail', 'Unknown error')
-                utils.write_output(f'Error: {msg_err}')
+                raise Exception(f'{msg_err}')
         except requests.RequestException as e:
-            utils.write_output(f'Error: {e}')
+            raise Exception(f'{e}')
 
         return None
 
@@ -247,9 +247,9 @@ class EdgeSQL:
                     utils.write_output("Error: Database information not found in response.")
             else:
                 msg_err = json_data.get('detail', 'Unknown error')
-                utils.write_output(f'Error: {msg_err}')
+                raise Exception(f'{msg_err}')
         except requests.RequestException as e:
-            utils.write_output(f'Error: {e}')
+            raise Exception(f'{e}')
 
         return database_info
 
@@ -283,20 +283,20 @@ class EdgeSQL:
                         utils.write_output(f"New database created. ID: {db_id}, Name: {db_name}")
                         return
                     else:
-                        utils.write_output("Error: Unexpected response format.")
+                        raise ValueError("Unexpected response format.")
                 else:
-                    utils.write_output("Error: Unexpected response format.")
+                    raise ValueError("Unexpected response format.")
             else:
                 error_detail = json_data.get('detail', 'Unknown error')
                 error_name = json_data.get('name', '')
                 if error_detail:
-                    utils.write_output(f"Error: {error_detail}")
+                    raise Exception(f"Error creating database: {error_detail}")
                 elif error_name:
-                    utils.write_output(f"Error: {error_name[0]}")
+                    raise Exception(f"Error creating database: {error_name[0]}")
                 else:
-                    utils.write_output(f"Error: {response.status_code}")
+                    raise Exception(f"Error creating database: {response.status_code}")
         except requests.RequestException as e:
-            utils.write_output(f'Error: {e}')
+            raise Exception(f"Error creating database: {e}")
 
     def destroy_database(self, database_name):
         """
@@ -330,9 +330,9 @@ class EdgeSQL:
                 utils.write_output('Database deleted successfully.')
             else:
                 msg_err = response.json().get('detail', 'Unknown error')
-                utils.write_output(f'Error: {msg_err}')
+                raise Exception(f"Error deleting database: {msg_err}")
         except requests.RequestException as e:
-            utils.write_output(f'Error: {e}')
+            raise Exception(f"Error deleting database: {e}")
 
     def list_tables(self):
         """
@@ -341,7 +341,10 @@ class EdgeSQL:
         Returns:
             dict or None: A dictionary containing table columns and rows if successful, or None if failed.
         """
-        return self.execute("PRAGMA table_list;")
+        try:
+            return self.execute("PRAGMA table_list;")
+        except Exception as e:
+            raise Exception(f'{e}')
 
     def describe_table(self, table_name):
         """
@@ -357,7 +360,10 @@ class EdgeSQL:
             utils.write_output("Usage: describe_table <table_name>")
             return None
 
-        return self.execute(f"PRAGMA table_info({table_name});")
+        try:
+            return self.execute(f"PRAGMA table_info({table_name});")
+        except Exception as e:
+            raise Exception(f'{e}')
 
     def exist_table(self, table_name):
         """
@@ -370,7 +376,10 @@ class EdgeSQL:
             bool: True if the table exists, False otherwise.
         """
         query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';"
-        result = self.execute(query)
+        try:
+            result = self.execute(query)
+        except Exception as e:
+            raise Exception(f'{e}')
 
         if isinstance(result, dict) and 'rows' in result and len(result['rows']) > 0:
             return True

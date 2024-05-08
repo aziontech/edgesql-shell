@@ -248,7 +248,11 @@ class EdgeSQLShell(cmd.Cmd):
                     pass
                 elif arg.endswith(';') and not self.transaction:
                     # Single-line command, execute immediately
-                    output = self.edgeSql.execute(arg)
+                    try: 
+                        output = self.edgeSql.execute(arg)
+                    except Exception as e:
+                        utils.write_output(f"Error executing SQL command: {e}")
+                        output = None
                     if output:
                         self.query_output(output['rows'], output['columns'])
                     return
