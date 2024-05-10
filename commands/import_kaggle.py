@@ -19,21 +19,12 @@ def import_data_kaggle(dataset_name, data_file):
         
         if not dataset_name:
             raise Exception("Error: Please provide a valid dataset name.")
-        
-        username = os.environ.get('KAGGLE_USERNAME')
-        api_key = os.environ.get('KAGGLE_KEY')
-        
-        if username is None:
-            raise Exception("Error: Kaggle username account not found in environment variable KAGGLE_USERNAME.")
-        
-        if api_key is None:
-            raise Exception("Error: Kaggle API Key not found in environment variable KAGGLE_KEY.")
-        
-        kaggle = ek.EdgSQLKaggle(username, api_key)
+
+        kaggle = ek.EdgSQLKaggle()
         
         return _import_kaggle_dataset(kaggle, dataset_name, data_file)
     except Exception as e:
-        raise Exception(f'Error importing Kaggle data: {e}')
+        raise Exception(f'{e}')
 
 def _import_kaggle_dataset(kaggle, dataset_name, data_file):
     """
@@ -76,4 +67,4 @@ def importer(dataset, data_name):
 
         return import_data_kaggle(dataset, data_name)
     except Exception as e:
-        raise Exception(f"Error during import: {e}")
+        raise Exception(f"{e}")

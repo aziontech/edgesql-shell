@@ -1,14 +1,19 @@
 #from kaggle.api.kaggle_api_extended import KaggleApi
+import pandas as pd
+import os
+import zipfile
+import json
+
+if not 'KAGGLE_USERNAME' in os.environ or not 'KAGGLE_KEY' in os.environ:
+    os.environ['KAGGLE_USERNAME'] = '__NONE__'
+    os.environ['KAGGLE_KEY'] = '__NONE__'
+
 import kaggle
 from kaggle.api.kaggle_api_extended import Configuration
 from kaggle.rest import ApiException
-import pandas as pd
-import utils
-import os
-import zipfile
 
 class EdgSQLKaggle:
-    def __init__(self, username, api_key):
+    def __init__(self):
         """
         Initialize EdgSQLKaggle with Kaggle API credentials.
 
@@ -17,10 +22,31 @@ class EdgSQLKaggle:
             api_key (str): Kaggle API key.
         """
 
-        self.username = username
-        self.api_key = api_key
+        self._load_credentials()
         self.api = None
         self._authenticate_kaggle()
+
+    def _load_credentials(self):
+        # Check if kaggle.json file is available
+        kaggle_json_path = os.path.expanduser('~/.kaggle/kaggle.json')
+        if os.path.isfile(kaggle_json_path):
+            with open(kaggle_json_path, 'r') as f:
+                kaggle_json_data = json.load(f)
+                kaggle_username = kaggle_json_data.get('username')
+                kaggle_key = kaggle_json_data.get('key')
+
+                if kaggle_username and kaggle_key:
+                    # Set the environment variables
+                    os.environ['KAGGLE_USERNAME'] = kaggle_username
+                    os.environ['KAGGLE_KEY'] = kaggle_key
+                    self.username = kaggle_username
+                    self.api_key = kaggle_key
+        elif os.environ['KAGGLE_USERNAME'] != '__NONE__' \
+            and os.environ['KAGGLE_KEY'] != '__NONE__':
+            self.username = os.environ.get('KAGGLE_USERNAME')
+            self.api_key = os.environ.get('KAGGLE_KEY')
+        else:
+            raise Exception("Kaggle credentials not found.")
 
     def _authenticate_kaggle(self):
         """
@@ -36,12 +62,10 @@ class EdgSQLKaggle:
 
             self.api = kaggle.KaggleApi(kaggle.ApiClient(configuration))
             self.api.authenticate()
-            #self.api.datasets_list()
 
             return True
         except ApiException as e:
-            utils.write_output(f'Error authenticating with Kaggle API: {e}')
-            return False
+            raise Exception(f'Error authenticating with Kaggle API: {e}')
 
     def get_dataset(self):
         """
@@ -67,12 +91,10 @@ class EdgSQLKaggle:
         """
 
         if not isinstance(dataset_name, str):
-            utils.write_output('Error: dataset_name must be strings.')
-            return False
+            raise Exception('Error: dataset_name must be strings.')
 
         if not self.api:
-            utils.write_output('Error: Kaggle API not authenticated.')
-            return False
+            raise Exception('Error: Kaggle API not authenticated.')
 
         try:
             # Download the Kaggle dataset
@@ -92,17 +114,12 @@ class EdgSQLKaggle:
 
             return True  # Indicating successful import
         except ApiException as e:
-            utils.write_output(f'Error importing Kaggle dataset "{dataset_name}": {e}')
-            return False
+            raise Exception(f'Error importing Kaggle dataset "{dataset_name}": {e}')
         except FileNotFoundError:
-            utils.write_output(f'Error: Dataset "{dataset_name}" not found on Kaggle.')
-            return False
+            raise Exception(f'Error: Dataset "{dataset_name}" not found on Kaggle.')
         except pd.errors.EmptyDataError:
-            utils.write_output(f'Error: Dataset "{dataset_name}" is empty or contains no data.')
-            return False
+            raise Exception(f'Error: Dataset "{dataset_name}" is empty or contains no data.')
         except pd.errors.ParserError as e:
-            utils.write_output(f'Error parsing dataset "{dataset_name}": {e}')
-            return False
+            raise Exception(f'Error parsing dataset "{dataset_name}": {e}')
         except Exception as e:
-            utils.write_output(f'Error importing Kaggle dataset "{dataset_name}": {e}')
-            return False
+            raise Exception(f'Error importing Kaggle dataset "{dataset_name}": {e}')
