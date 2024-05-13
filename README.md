@@ -38,19 +38,11 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 	- From libSQL from Turso
 - Error handling and graceful exit
 
-## Requirements
+## System Requirements
 
 - Python 3.x
-- libraries:
-	- Requests
-	- Tabulate
-	- SQLParse
-	- PathValidate
-	- Pandas
-	- kaggle
-	- mysql_connector_repackaged
-	- psycopg2
-	- tqdm
+- Library Psycopg2
+- MySQL Connector/Python 
 
 ## Installation
 
@@ -77,7 +69,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 2. Run the EdgeSQL Shell:
 
    ```bash
-   python EdgeSQLShell.py
+   python edgesql-shell.py
    ```
 
 3. Use the commands listed below to interact with the EdgeSQL service:
