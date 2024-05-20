@@ -307,6 +307,59 @@ class EdgeSQLShell(cmd.Cmd):
             else:
                 df.to_csv(self.output, sep=' ', index=False)
 
+    def execute_commands(self, commands):
+        """Execute a list of commands."""
+        for command in commands:
+            if command.startswith("."):
+                command_parts = command.split()
+                command_name = command_parts[0]
+                if command_name in self.command_mapping:
+                    args = ' '.join(command_parts[1:])
+                    self.command_mapping[command_name](args)
+            else:
+                self.execute_sql_command(command)
+
+    def execute_sql_command(self, sql_command):
+        """Execute a SQL command."""
+        try:
+            output = self.edgeSql.execute(sql_command)
+            if output:
+                self.query_output(output['rows'], output['columns'])
+        except Exception as e:
+            utils.write_output(f"Error executing SQL command: {e}")
+
+    def process_arguments(self, arguments):
+        """Process command-line arguments."""
+        interactive_mode = True
+        commands = []
+        skip_next = False  # Flag to skip processing the next argument if it's a command
+        for idx, arg in enumerate(arguments):
+            if skip_next:
+                skip_next = False
+                continue
+
+            if arg == "-n":
+                interactive_mode = False
+            elif arg.startswith("-c"):
+                command = arg[2:]  # Get the command after '-c'
+                # If the next argument exists and is not another option
+                if idx + 1 < len(arguments) and not arguments[idx + 1].startswith("-"):
+                    command += arguments[idx + 1]  # Append the next argument as part of the command
+                    skip_next = True  # Skip processing the next argument since it's part of the command
+                commands.append(command.strip())
+            elif arg in ["-h", "--help"]:
+                utils.write_output(
+                    """
+                    Usage:
+                    -n: Non-interactive mode.
+                    -c <command>: Execute a command.
+                    -h, --help: Show this help message.
+                    """
+                )
+                sys.exit()
+        return interactive_mode, commands
+
+
 if __name__ == "__main__":
     signal.signal(signal.SIGINT, utils.signal_handler)
     token = os.environ.get('AZION_TOKEN')
@@ -317,4 +370,12 @@ if __name__ == "__main__":
     base_url = os.environ.get('AZION_BASE_URL')
     edgSql = edgesql.EdgeSQL(token, base_url)
     azion_db_shell = EdgeSQLShell(edgSql)
-    azion_db_shell.cmdloop("Welcome to EdgeSQL Shell. Type '.exit' to quit.")
+    
+    # Process command-line arguments
+    interactive_mode, commands = azion_db_shell.process_arguments(sys.argv[1:])
+
+    if interactive_mode:
+        azion_db_shell.cmdloop("Welcome to EdgeSQL Shell. Type '.exit' to quit.")
+    else:
+        # Execute commands non-interactively
+        azion_db_shell.execute_commands(commands)
