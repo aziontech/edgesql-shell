@@ -37,6 +37,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 	- From Kaggle Datasets
 	- From libSQL from Turso
 - Error handling and graceful exit
+- Interactive and noninteractive execution
 
 ## System Requirements
 
