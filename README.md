@@ -39,7 +39,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 - Error handling and graceful exit
 - Interactive and noninteractive execution
 
-## System Requirements
+## Requirements
 
 - Python 3.x
 - Library Psycopg2
@@ -73,11 +73,19 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 
 2. Run the EdgeSQL Shell:
 
+   For interactive mode:
+   
    ```bash
    python edgesql-shell.py
    ```
 
-3. Use the commands listed below to interact with the EdgeSQL service:
+   For noninteractive mode:
+
+   ```bash
+    python3 edgesql-shell.py -n -c ".use MyDB2024" -c ".tables"
+   ```
+
+4. Use the commands listed below to interact with the EdgeSQL service:
 
    ```bash
    .tables				                 # List all tables
