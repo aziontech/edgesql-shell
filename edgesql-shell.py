@@ -378,4 +378,7 @@ if __name__ == "__main__":
         azion_db_shell.cmdloop("Welcome to EdgeSQL Shell. Type '.exit' to quit.")
     else:
         # Execute commands non-interactively
-        azion_db_shell.execute_commands(commands)
+        try:
+            azion_db_shell.execute_commands(commands)
+        except Exception as e:
+            utils.write_output(f"Error executing SQL command: {e}")
