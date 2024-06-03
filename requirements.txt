@@ -3,7 +3,7 @@ mysql_connector_repackaged==0.3.1
 pandas==2.2.2
 pathvalidate==3.2.0
 psycopg2==2.9.9
-Requests==2.32.0
+Requests==2.32.3
 sqlparse==0.5.0
 tabulate==0.9.0
 tqdm==4.66.4
