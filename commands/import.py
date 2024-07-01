@@ -6,7 +6,7 @@ from commands import import_kaggle as kaggle
 from commands import import_database as database
 from commands import import_turso as turso
 
-def _import_data(edgeSql, dataset, table_name, chunk_size=1000):
+def _import_data(edgeSql, dataset, table_name, chunk_size=512):
     """
     Import data into a specified database table in chunks with a progress bar.
 
