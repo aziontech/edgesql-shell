@@ -1,6 +1,7 @@
 import utils
 import os
 from pathlib import Path
+from tqdm import tqdm
 
 def do_read(shell, arg):
     """
@@ -24,20 +25,42 @@ def do_read(shell, arg):
         utils.write_output(f"Error during execution: {e}")
 
 
-def read_sql_from_file(edgeSql, file_name):
-    """Read SQL statements from a file and execute them."""
+def read_sql_from_file(edgeSql, file_name, chunk_size=512):
+    """Read SQL statements from a file and execute them in chunks."""
+    
     if not os.path.isfile(file_name):
         utils.write_output(f"File '{file_name}' not found.")
         return
 
     try:
         with open(file_name, 'r') as file:
-            sql_statements = file.read()
-    except Exception as e:
-        utils.write_output(f"Error reading file '{file_name}': {e}")
-        return
+            sql_statements = file.read().strip().split(';')
+            # Remove any empty statements that may result from splitting
+            sql_statements = [stmt.strip() for stmt in sql_statements if stmt.strip()]
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"File '{file_name}' not found.") from e
+    except IOError as e:
+        raise IOError(f"Error reading file '{file_name}': {e}") from e
+
+    total_chunks = len(sql_statements) // chunk_size + (1 if len(sql_statements) % chunk_size != 0 else 0)
 
     try:
-        edgeSql.execute(sql_statements)
+        # Execute SQL statements in chunks
+        with tqdm(total=total_chunks, desc="Progress", unit="chunk") as progress_bar:
+            for i in range(0, len(sql_statements), chunk_size):
+                chunk = sql_statements[i:i + chunk_size]
+                try:
+                    # Join SQL statements with ';' as separator and execute
+                    sql_chunk = ';'.join(chunk) + ';'
+                    edgeSql.execute(sql_chunk)
+                except Exception as e:
+                    utils.write_output(f'Error executing SQL chunk: {e}')
+                    # Optionally, continue with the next chunk or break
+                # Update progress bar
+                progress_bar.update(1)
+                
+        return True  # Execution successful
+
     except Exception as e:
-        utils.write_output(f'Error executing SQL statements from file: {e}')
+        utils.write_output(f'Error processing SQL file: {e}')
+        return False
