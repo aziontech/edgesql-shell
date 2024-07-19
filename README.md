@@ -60,10 +60,9 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 3. Install the Python dependencies:
 
    ```bash
-   python3 -m venv env
+   python -m venv env
    source env/bin/activate
    brew install postgresql
-   pip install mysql-connector
    pip install -r requirements.txt
    ```
 
