@@ -167,13 +167,13 @@ class EdgeSQLShell(cmd.Cmd):
         Set output mode.
 
         Args:
-            arg (str): Output mode ('excel', 'tabular', 'csv', 'html', 'markdown', 'raw').
+            arg (str): Output mode ('excel', 'tabular', 'csv', 'json','html', 'markdown', 'raw').
         """
-        mode_lst = ['excel', 'tabular','csv','html','markdown','raw']
+        mode_lst = ['excel', 'tabular','csv','json','html','markdown','raw']
         arg_lower = arg.lower() if arg else None
     
         if not arg_lower or arg_lower not in mode_lst:
-            utils.write_output("Usage: .mode excel|tabular|csv|html|markdown|raw")
+            utils.write_output("Usage: .mode excel|tabular|csv|json|html|markdown|raw")
             return
 
         self.outFormat = arg_lower
@@ -264,60 +264,65 @@ class EdgeSQLShell(cmd.Cmd):
 
     def query_output(self, rows, columns):
         """Format and output query results."""
-        df = pd.DataFrame(rows,columns=columns)
+        df = pd.DataFrame(rows, columns=columns)
 
-        if self.outFormat == 'tabular':
-            formatted_data = tabulate(df.to_dict(orient='records'), headers="keys", tablefmt='fancy_grid')
-            utils.write_output(formatted_data, self.output)
-        elif self.outFormat == 'markdown':
-            formatted_data = tabulate(df.to_dict(orient='records'), headers="keys", tablefmt='pipe')
-            utils.write_output(formatted_data, self.output)
-        elif self.outFormat == 'csv':
-            if self.output == '':
-                buffer = StringIO()
-                df.to_csv(buffer, index=False)
-                buffer.seek(0)
-                utils.write_output(buffer.getvalue(), self.output)
-            else:
-                df.to_csv(self.output, index=False)
-        elif self.outFormat == 'excel':
-            if self.output == '':
-                buffer = StringIO()
-                df.to_csv(buffer, index=False)
-                buffer.seek(0)
-                utils.write_output(buffer.getvalue(), self.output)
-            elif not self.output.endswith(".xlsx"): # engine=io.excel.xlsx.writer
+        def output_to_buffer(format_func, *args, **kwargs):
+            buffer = StringIO()
+            format_func(df, buffer, *args, **kwargs)
+            buffer.seek(0)
+            utils.write_output(buffer.getvalue(), self.output)
+
+        format_map = {
+            'tabular': lambda df: tabulate(df.to_dict(orient='records'), headers="keys", tablefmt='fancy_grid'),
+            'markdown': lambda df: tabulate(df.to_dict(orient='records'), headers="keys", tablefmt='pipe'),
+            'csv': lambda df, buffer: df.to_csv(buffer, index=False),
+            'json': lambda df, buffer: df.to_json(buffer, index=False, orient='records', indent=4),
+            'html': lambda df, buffer: df.to_html(buffer, index=False),
+            'raw': lambda df, buffer: df.to_csv(buffer, sep=' ', index=False),
+        }
+
+        if self.outFormat not in format_map and self.outFormat != 'excel':
+            raise ValueError(f"Unsupported output format: {self.outFormat}")
+
+        try:
+            if self.outFormat == 'excel' and not self.output.endswith(".xlsx"):
                 utils.write_output('For "excel" mode, the output file must have the extension .xlsx', '')
+            elif self.output == '':
+                if self.outFormat in ['csv', 'json', 'html', 'raw']:
+                    output_to_buffer(format_map[self.outFormat])
+                elif self.outFormat in ['tabular', 'markdown']:
+                    formatted_data = format_map[self.outFormat](df)
+                    utils.write_output(formatted_data, self.output)
+                elif self.outFormat == 'excel':
+                    buffer = StringIO()
+                    df.to_excel(buffer, index=False)
+                    buffer.seek(0)
+                    utils.write_output(buffer.getvalue(), self.output)
             else:
-                df.to_excel(self.output, index=False)
-        elif self.outFormat == 'html':
-            if self.output == '':
-                buffer = StringIO()
-                df.to_html(buffer, index=False)
-                buffer.seek(0)
-                utils.write_output(buffer.getvalue(), self.output)
-            else:
-                df.to_html(self.output, index=False)
-        else: # raw
-            if self.output == '':
-                buffer = StringIO()
-                df.to_csv(buffer, sep=' ', index=False)
-                buffer.seek(0)
-                utils.write_output(buffer.getvalue(), self.output)
-            else:
-                df.to_csv(self.output, sep=' ', index=False)
+                if self.outFormat in ['csv', 'json', 'html', 'raw']:
+                    with open(self.output, 'w') as f:
+                        format_map[self.outFormat](df, f)
+                elif self.outFormat in ['tabular', 'markdown']:
+                    formatted_data = format_map[self.outFormat](df)
+                    utils.write_output(formatted_data, self.output)
+                elif self.outFormat == 'excel':
+                    df.to_excel(self.output, index=False)
+        except Exception as e:
+            utils.write_output(f"An error occurred: {e}", '')
 
-    def execute_commands(self, commands):
-        """Execute a list of commands."""
-        for command in commands:
-            if command.startswith("."):
-                command_parts = command.split()
-                command_name = command_parts[0]
-                if command_name in self.command_mapping:
-                    args = ' '.join(command_parts[1:])
-                    self.command_mapping[command_name](args)
-            else:
-                self.execute_sql_command(command)
+
+
+        def execute_commands(self, commands):
+            """Execute a list of commands."""
+            for command in commands:    
+                if command.startswith("."):
+                    command_parts = command.split()
+                    command_name = command_parts[0]
+                    if command_name in self.command_mapping:
+                        args = ' '.join(command_parts[1:])
+                        self.command_mapping[command_name](args)
+                else:
+                    self.execute_sql_command(command)
 
     def execute_sql_command(self, sql_command):
         """Execute a SQL command."""
