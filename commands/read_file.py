@@ -21,8 +21,12 @@ def do_read(shell, arg):
             utils.write_output(f"SQL statements from {file_name} executed successfully.")
         else:
             utils.write_output(f"Error: File '{file_name}' not found.")
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"File not found during execution: {e}")
+    except IOError as e:
+        raise IOError(f"I/O error during execution: {e}")
     except Exception as e:
-        utils.write_output(f"Error during execution: {e}")
+        raise Exception(f"Unexpected error during execution: {e}")
 
 
 def read_sql_from_file(edgeSql, file_name, chunk_size=512):
@@ -33,7 +37,7 @@ def read_sql_from_file(edgeSql, file_name, chunk_size=512):
         return
 
     try:
-        with open(file_name, 'r') as file:
+        with open(file_name, 'r', encoding='utf-8') as file:
             sql_statements = file.read().strip().split(';')
             # Remove any empty statements that may result from splitting
             sql_statements = [stmt.strip() for stmt in sql_statements if stmt.strip()]
@@ -54,13 +58,11 @@ def read_sql_from_file(edgeSql, file_name, chunk_size=512):
                     sql_chunk = ';'.join(chunk) + ';'
                     edgeSql.execute(sql_chunk)
                 except Exception as e:
-                    utils.write_output(f'Error executing SQL chunk: {e}')
-                    # Optionally, continue with the next chunk or break
+                    raise Exception(f'Error executing SQL chunk: {e}')
+
                 # Update progress bar
                 progress_bar.update(1)
                 
         return True  # Execution successful
-
     except Exception as e:
-        utils.write_output(f'Error processing SQL file: {e}')
-        return False
+        raise Exception(f'Error processing SQL file: {e}')

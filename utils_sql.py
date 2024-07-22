@@ -24,8 +24,11 @@ def sql_to_list(sql_buffer):
         sql_commands = [cmd.strip() for cmd in sql_commands if cmd.strip()]
 
         return sql_commands
+    except ValueError as e:
+        print(f"ValueError splitting SQL commands: {e}")
+        return []
     except Exception as e:
-        print(f"Error splitting SQL commands: {e}")
+        print(f"Unexpected error splitting SQL commands: {e}")
         return []
 
 def generate_create_table_sql(df, table_name):
@@ -62,7 +65,8 @@ def generate_create_table_sql(df, table_name):
             columns.append(f"{column_name} INTEGER")  # Map bool to INTEGER
         elif dtype == 'datetime64[ns]':
             columns.append(f"{column_name} TIMESTAMP")  # Map datetime to TIMESTAMP
-        # Add more conditions as needed for other data types
+        else:
+            columns.append(f"{column_name} TEXT")  # Default to TEXT for any other type
 
     sql = f"CREATE TABLE {table_name} (\n"
     sql += ",\n".join(columns)
@@ -119,7 +123,8 @@ def format_sql(statement, reindent=True, keyword_case='upper'):
 
         formatted_statement = sqlparse.format(statement, reindent=reindent, keyword_case=keyword_case)
         return formatted_statement
+    except ValueError as e:
+        raise ValueError(f"ValueError formatting SQL: {e}")
     except Exception as e:
-        print(f"Error formatting SQL: {e}")
-        return None
+        raise ValueError(f"Unexpected error formatting SQL: {e}")
     

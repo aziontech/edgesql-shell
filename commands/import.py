@@ -38,8 +38,7 @@ def _import_data(edgeSql, dataset, table_name, chunk_size=512):
 
         return True  # Import successful
     except Exception as e:
-        utils.write_output(f'Error inserting data into database: {e}')
-        return False
+        raise Exception(f'Error inserting data into database: {e}')
 
 def do_import(shell, arg):
     """
@@ -52,7 +51,7 @@ def do_import(shell, arg):
         .import local <csv|xlsx> <file_path> <table_name>: Import data from a local CSV or Excel file.
         .import kaggle <dataset> <data_name> <table_name>: Import data from a Kaggle dataset.
         .import mysql <database> <source_table> <table_name>: Import data from a MySQL database table.
-        .import postgresql <database> <source_table> <table_name>: Import data from PostgreSQL database table.
+        .import postgres <database> <source_table> <table_name>: Import data from PostgreSQL database table.
         .import turso <database> <source_table> <table_name>: Import data from Turso database.
 
     Examples:
@@ -73,7 +72,7 @@ def do_import(shell, arg):
         utils.write_output(".import local <csv|xlsx> <file_path> <table_name>")
         utils.write_output(".import kaggle <dataset> <data_name> <table_name>")
         utils.write_output(".import mysql <database> <source_table> <table_name>")
-        utils.write_output(".import postgresql <database> <source_table> <table_name>")
+        utils.write_output(".import postgres <database> <source_table> <table_name>")
         utils.write_output(".import turso <database> <source_table> <table_name>")
         return
 
@@ -131,4 +130,4 @@ def do_import(shell, arg):
         else:
             utils.write_output("Error: No data to import or import failed.")
     except Exception as e:
-        utils.write_output(f"Error during import: {e}")
+        raise Exception(f"Error during import: {e}")

@@ -1,3 +1,5 @@
+import sys
+
 def write_output(message, destination='', mode='a'):
     """
     Writes a message to either stdout or a specified file.
@@ -14,11 +16,11 @@ def write_output(message, destination='', mode='a'):
         if destination == '':
             print(message)
         else:
-            with open(destination, mode) as file:
+            with open(destination, mode, encoding='utf-8') as file:
                 file.write(message+'\n')
-            #print("Message written successfully.")
-    except Exception as e:
-        print(f"Error writing message to file: {e}")
+
+    except OSError as e:
+        print(f"Error writing message to file {destination}: {e}")
 
 
 def contains_any(arg, substrings, case_sensitive=False):
@@ -38,11 +40,11 @@ def contains_any(arg, substrings, case_sensitive=False):
             return any(substring in arg for substring in substrings)
         else:
             return any(substring.lower() in arg.lower() for substring in substrings)
-    except Exception as e:
+    except TypeError as e:
         print(f"Error checking string for substrings: {e}")
         return False
 
 def signal_handler(sig, frame):
     """Handle Ctrl+C signal."""
     write_output('\nCtrl+C pressed. Exiting EdgeSQL Shell.')
-    exit()
+    sys.exit(0)
