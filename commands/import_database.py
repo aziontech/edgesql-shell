@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import mysql.connector
 import psycopg2
+from psycopg2 import sql, OperationalError
 
 def is_remote(host):
     # Modify this function based on your criteria to detect local or remote connections
@@ -14,34 +15,40 @@ def connect_database(db_type, use_tls, connection_args):
     elif db_type == 'postgres':
         return connect_postgres(use_tls, connection_args)
     else:
-        raise Exception("Invalid database type. Use 'mysql' or 'postgres'.")
+        raise ValueError("Invalid database type. Use 'mysql' or 'postgres'.")
 
 def connect_mysql(use_tls, connection_args):
-    if use_tls:
-        return mysql.connector.connect(**connection_args)
-    else:
-        return mysql.connector.connect(
-            user=connection_args['user'],
-            password=connection_args['password'],
-            host=connection_args['host'],
-            port=connection_args['port'],  # Default MySQL port is 3306
-            database=connection_args['database']
-        )
+    try:
+        if use_tls:
+            return mysql.connector.connect(**connection_args)
+        else:
+            return mysql.connector.connect(
+                user=connection_args['user'],
+                password=connection_args['password'],
+                host=connection_args['host'],
+                port=connection_args['port'],  # Default MySQL port is 3306
+                database=connection_args['database']
+            )
+    except mysql.connector.Error as e:
+        raise OperationalError(f"Error connecting to MySQL: {e}") from e
 
 def connect_postgres(use_tls, connection_args):
-    if use_tls:
-        return psycopg2.connect(**connection_args)
-    else:
-        return psycopg2.connect(
-            user=connection_args['user'],
-            password=connection_args['password'],
-            host=connection_args['host'],
-            port=connection_args['port'],  # Default PostgreSQL port is 5432
-            database=connection_args['database']
+    try:
+        if use_tls:
+            return psycopg2.connect(**connection_args)
+        else:
+            return psycopg2.connect(
+                user=connection_args['user'],
+                password=connection_args['password'],
+                host=connection_args['host'],
+                port=connection_args['port'],  # Default PostgreSQL port is 5432
+                database=connection_args['database']
         )
+    except psycopg2.Error as e:
+        raise OperationalError(f"Error connecting to PostgreSQL: {e}") from e
 
 def fetch_data_from_table(cursor, source_table):
-    query = f"SELECT * FROM {source_table}"
+    query = sql.SQL("SELECT * FROM {}").format(sql.Identifier(source_table))
     cursor.execute(query)
     return cursor.fetchall()
 
@@ -70,7 +77,7 @@ def importer(db_type, db_database, source_table):
     ssl_verify_cert = bool(os.environ.get(f'{db_type.upper()}_SSL_VERIFY_CERT', False))
 
     if not all([db_user, db_password, db_host, db_database]):
-        raise Exception(f"{db_type.upper()} environmental variables not set correctly.")
+        raise EnvironmentError(f"{db_type.upper()} environmental variables not set correctly.")
 
     # Determine if TLS should be used based on the connection type and SSL parameters
     if ssl_ca is None or ssl_cert is None or ssl_key is None or is_remote(db_host) == False:
@@ -107,10 +114,10 @@ def importer(db_type, db_database, source_table):
                     # Extract column names from cursor.description
                     columns = [col[0] for col in cursor.description]
                 else:
-                    raise Exception("Unable to fetch column names from cursor description.")
+                    raise ValueError("Unable to fetch column names from cursor description.")
 
         # Import data into a Pandas DataFrame
         return pd.DataFrame(rows, columns=columns)
 
-    except Exception as e:
-        raise Exception(f"Error during {db_type} import: {e}")
+    except (mysql.connector.Error, psycopg2.Error, ValueError) as e:
+        raise Exception(f"Error during {db_type} import: {e}") from e

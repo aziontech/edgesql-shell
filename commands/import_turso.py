@@ -7,10 +7,10 @@ def importer(db_name, source_table):
 
     base_url = os.getenv("TURSO_DATABASE_URL")
     auth_token = os.getenv("TURSO_AUTH_TOKEN")
-    encryption_key = os.getenv("TURSO_ENCRYPTION_KEY")
+    #encryption_key = os.getenv("TURSO_ENCRYPTION_KEY")
 
     if not all([base_url, auth_token]):
-        raise Exception(f"{db_name.upper()} environmental variables not set correctly.")
+        raise EnvironmentError(f"{db_name.upper()} environmental variables not set correctly.")
 
     url = f'{base_url}/v2/pipeline'
 
@@ -49,4 +49,4 @@ def importer(db_name, source_table):
                         # Import data into a Pandas DataFrame
                         return pd.DataFrame(rows, columns=columns)
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Error during {db_name} import: {e}")
+        raise Exception(f"Error during {db_name} import: {e}") from e
