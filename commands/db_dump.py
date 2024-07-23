@@ -6,39 +6,8 @@ DUMP_SCHEMA_ONLY = 0x1
 DUMP_DATA_ONLY = 0x1 << 1
 DUMP_ALL = DUMP_SCHEMA_ONLY | DUMP_DATA_ONLY
 DUMP_NONE = 0x0
-        
-def do_dump(shell, arg):
-    """
-    Render database structure as SQL.
 
-    Args:
-        arg (str): Optional arguments '--schema-only', '--data-only', or table name(s).
-    """
-    if not shell.edgeSql.get_current_database_id():
-        utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
-        return
-
-    dump_type = DUMP_NONE
-
-    if not arg:
-        dump(shell)
-    else:
-        args = arg.split()
-
-        if '--schema-only' in args:
-            args.remove('--schema-only')
-            dump_type = dump_type | DUMP_SCHEMA_ONLY
-        if '--data-only' in args:
-            args.remove('--data-only')
-            dump_type = dump_type | DUMP_DATA_ONLY
-
-        if dump_type == DUMP_NONE:
-            dump(shell, arg=args, dump=DUMP_ALL)
-        else:
-            dump(shell, arg=args,dump=dump_type)
-
-
-def dump_table(shell, table_name, dump=DUMP_ALL, batch_size=1000):
+def dump_table(shell, table_name, dump=DUMP_ALL, batch_size=512):
     """
     Dump table structure and data as SQL.
 
@@ -107,10 +76,10 @@ def dump_table(shell, table_name, dump=DUMP_ALL, batch_size=1000):
                     offset += batch_size
 
     except Exception as e:
-        utils.write_output(f"Error dumping table '{table_name}': {e}")
+        raise RuntimeError(f"Error dumping table '{table_name}': {e}") from e
 
     
-def dump(shell, arg=False, dump=DUMP_ALL):
+def _dump(shell, arg=False, dump=DUMP_ALL):
     """
     Dump database structure and data as SQL.
 
@@ -129,11 +98,10 @@ def dump(shell, arg=False, dump=DUMP_ALL):
                 table_lst = tables_output['rows']
                 for table in table_lst:
                     table_name = table[0]
-
                     if table_name == "sqlite_sequence":
-                        utils.write_output("DELETE FROM sqlite_sequence;", shell.output);
+                        utils.write_output("DELETE FROM sqlite_sequence;", shell.output)
                     elif table_name == "sqlite_stat1":
-                        utils.write_output("ANALYZE sqlite_master;", shell.output);
+                        utils.write_output("ANALYZE sqlite_master;", shell.output)
                     elif table_name.startswith("sqlite_"):
                         continue
                     else:
@@ -146,4 +114,35 @@ def dump(shell, arg=False, dump=DUMP_ALL):
         utils.write_output("PRAGMA foreign_keys=ON;", shell.output)
 
     except Exception as e:
-        utils.write_output(f"Error dumping database: {e}")
+        raise RuntimeError(f"Error dumping database: {e}") from e
+
+
+def do_dump(shell, arg):
+    """
+    Render database structure as SQL.
+
+    Args:
+        arg (str): Optional arguments '--schema-only', '--data-only', or table name(s).
+    """
+    if not shell.edgeSql.get_current_database_id():
+        utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
+        return
+
+    dump_type = DUMP_NONE
+
+    if not arg:
+        _dump(shell)
+    else:
+        args = arg.split()
+
+        if '--schema-only' in args:
+            args.remove('--schema-only')
+            dump_type = dump_type | DUMP_SCHEMA_ONLY
+        if '--data-only' in args:
+            args.remove('--data-only')
+            dump_type = dump_type | DUMP_DATA_ONLY
+
+        if dump_type == DUMP_NONE:
+            _dump(shell, arg=args, dump=DUMP_ALL)
+        else:
+            _dump(shell, arg=args,dump=dump_type)

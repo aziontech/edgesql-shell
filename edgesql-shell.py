@@ -16,7 +16,7 @@ IGNORE_TOKENS = ['--']
 
 
 class EdgeSQLShell(cmd.Cmd):
-    def __init__(self, edgesql):
+    def __init__(self, edgesql_instance):
         """
         Initialize EdgeSQLShell object.
 
@@ -24,7 +24,7 @@ class EdgeSQLShell(cmd.Cmd):
             edgesql (EdgeSQL): An instance of the EdgeSQL class.
         """
         super().__init__()
-        self.edgeSql = edgesql
+        self.edgeSql = edgesql_instance
         self.prompt = 'EdgeSQL'
         self.update_prompt()
         self.last_command = ''
@@ -135,7 +135,6 @@ class EdgeSQLShell(cmd.Cmd):
 
     def emptyline(self):
         """Ignore empty lines."""
-        pass
 
     def do_output(self, arg):
         """
@@ -148,19 +147,18 @@ class EdgeSQLShell(cmd.Cmd):
             utils.write_output("Usage: .output stdout|file_path")
             return
         
-        output_mode = arg.split()[0].lower()
-        if output_mode == 'stdout':
-            self.output = ''
-            utils.write_output("Output set to stdout.")
-        else:
-            file_path = Path(output_mode)
-            try:
+        try:
+            output_mode = arg.split()[0].lower()
+            if output_mode == 'stdout':
+                self.output = ''
+                utils.write_output("Output set to stdout.")
+            else:
+                file_path = Path(output_mode)
                 validate_filepath(file_path, platform='auto')
                 self.output = output_mode
                 utils.write_output(f"Output set to file: {output_mode}")
-            except ValidationError as e:
-                utils.write_output(f"Error: {e}")
-                return
+        except ValidationError as er:
+            raise ValidationError(f"Error: {er}") from er
 
     def do_mode(self, arg):
         """
@@ -193,74 +191,78 @@ class EdgeSQLShell(cmd.Cmd):
             output = self.edgeSql.execute(sql_command)
             if output:
                 self.query_output(output['rows'], output['columns'])
-        except Exception as e:
-             utils.write_output(f"Error executing SQL command: {e}")
+        except Exception as er:
+            raise RuntimeError(f"Error executing SQL command: {er}") from er
 
         self.multiline_command = []  # Reset multiline command buffer
 
-    def default(self, arg):
+    def default(self, line):
         """Execute SQL command and handle multiline input."""
-        if arg.strip():
-            # New command
-            self.last_command = arg
-        
-            # Check if the command starts with a dot (indicating a shell command)
-            if arg.startswith("."):
-                command, *args = arg.split(" ")
-                command_map = self.command_mapping  # Get the command mapping
-                # Execute the corresponding method if the command is recognized
-                if command in command_map:
-                    return command_map[command](" ".join(args))
+        try:
+            arg = line.strip()
+            if arg:
+                # New command
+                self.last_command = line
+            
+                # Check if the command starts with a dot (indicating a shell command)
+                if arg.startswith("."):
+                    command, *args = arg.split(" ")
+                    command_map = self.command_mapping  # Get the command mapping
+                    # Execute the corresponding method if the command is recognized
+                    if command in command_map:
+                        return command_map[command](" ".join(args))
+                    else:
+                        utils.write_output("Invalid command.")
+                elif self.multiline_command:
+                    if utils.contains_any(arg,IGNORE_TOKENS):
+                        pass
+                    elif any('begin' in cmd.lower() for cmd in self.multiline_command):
+                        # Multi-line command with 'begin', accumulate lines
+                        if 'end;' in arg.lower():
+                            self.multiline_command.append(arg)
+                            self.execute_sql_command_multiline()
+                            return
+                        else:
+                            self.multiline_command.append(arg)
+                    else:
+                        # Multi-line single command
+                        if ';' in arg.lower() and not self.transaction:
+                            self.multiline_command.append(arg)
+                            self.execute_sql_command_multiline()
+                            return
+                        elif 'commit' in arg.lower():
+                            self.execute_sql_command_multiline()
+                            return
+                        elif 'rollback' in arg.lower():
+                            self.transaction = False
+                            self.multiline_command = ''
+                            return
+                        else:
+                            self.multiline_command.append(arg)
+                        
                 else:
-                    utils.write_output("Invalid command.")
-            elif self.multiline_command:
-                if utils.contains_any(arg,IGNORE_TOKENS):
-                    pass
-                elif any('begin' in cmd.lower() for cmd in self.multiline_command):
-                    # Multi-line command with 'begin', accumulate lines
-                    if 'end;' in arg.lower():
-                        self.multiline_command.append(arg)
-                        self.execute_sql_command_multiline()
+                    if utils.contains_any(arg, IGNORE_TOKENS + ['END;']):
+                        pass
+                    elif 'transaction' in arg.lower():
+                        self.transaction = True
+                        pass
+                    elif arg.endswith(';') and not self.transaction:
+                        # Single-line command, execute immediately
+                        try: 
+                            output = self.edgeSql.execute(arg)
+                        except RuntimeError as er:
+                            utils.write_output(f"Error executing SQL command: {er}")
+                            output = None
+                        if output:
+                            self.query_output(output['rows'], output['columns'])
                         return
                     else:
+                        # Multi-line command, accumulate lines
                         self.multiline_command.append(arg)
-                else:
-                    # Multi-line single command
-                    if ';' in arg.lower() and not self.transaction:
-                        self.multiline_command.append(arg)
-                        self.execute_sql_command_multiline()
-                        return
-                    elif 'commit' in arg.lower():
-                        self.execute_sql_command_multiline()
-                        return
-                    elif 'rollback' in arg.lower():
-                        self.transaction = False
-                        self.multiline_command = ''
-                        return
-                    else:
-                        self.multiline_command.append(arg)
-                    
             else:
-                if utils.contains_any(arg, IGNORE_TOKENS + ['END;']):
-                    pass
-                elif 'transaction' in arg.lower():
-                    self.transaction = True
-                    pass
-                elif arg.endswith(';') and not self.transaction:
-                    # Single-line command, execute immediately
-                    try: 
-                        output = self.edgeSql.execute(arg)
-                    except Exception as e:
-                        utils.write_output(f"Error executing SQL command: {e}")
-                        output = None
-                    if output:
-                        self.query_output(output['rows'], output['columns'])
-                    return
-                else:
-                    # Multi-line command, accumulate lines
-                    self.multiline_command.append(arg)
-        else:
-            pass
+                pass
+        except RuntimeError as er:
+            utils.write_output(f"{er}", '')
 
     def query_output(self, rows, columns):
         """Format and output query results."""
@@ -300,21 +302,20 @@ class EdgeSQLShell(cmd.Cmd):
                     utils.write_output(buffer.getvalue(), self.output)
             else:
                 if self.outFormat in ['csv', 'json', 'html', 'raw']:
-                    with open(self.output, 'w') as f:
+                    with open(self.output, 'w', encoding="utf-8") as f:
                         format_map[self.outFormat](df, f)
                 elif self.outFormat in ['tabular', 'markdown']:
                     formatted_data = format_map[self.outFormat](df)
                     utils.write_output(formatted_data, self.output)
                 elif self.outFormat == 'excel':
                     df.to_excel(self.output, index=False)
-        except Exception as e:
-            utils.write_output(f"An error occurred: {e}", '')
+        except Exception as er:
+            raise RuntimeError(f"An error occurred: {er}", '') from er
 
 
-
-        def execute_commands(self, commands):
+        def execute_commands(self, cmds):
             """Execute a list of commands."""
-            for command in commands:    
+            for command in cmds:    
                 if command.startswith("."):
                     command_parts = command.split()
                     command_name = command_parts[0]
@@ -330,13 +331,13 @@ class EdgeSQLShell(cmd.Cmd):
             output = self.edgeSql.execute(sql_command)
             if output:
                 self.query_output(output['rows'], output['columns'])
-        except Exception as e:
-            utils.write_output(f"Error executing SQL command: {e}")
+        except Exception as er:
+            raise RuntimeError(f"Error executing SQL command: {er}") from er
 
     def process_arguments(self, arguments):
         """Process command-line arguments."""
-        interactive_mode = True
-        commands = []
+        interactive = True
+        cmds = []
         skip_next = False  # Flag to skip processing the next argument if it's a command
         for idx, arg in enumerate(arguments):
             if skip_next:
@@ -344,14 +345,14 @@ class EdgeSQLShell(cmd.Cmd):
                 continue
 
             if arg == "-n":
-                interactive_mode = False
+                interactive = False
             elif arg.startswith("-c"):
-                command = arg[2:]  # Get the command after '-c'
+                cmds = arg[2:]  # Get the command after '-c'
                 # If the next argument exists and is not another option
                 if idx + 1 < len(arguments) and not arguments[idx + 1].startswith("-"):
                     command += arguments[idx + 1]  # Append the next argument as part of the command
                     skip_next = True  # Skip processing the next argument since it's part of the command
-                commands.append(command.strip())
+                cmds.append(cmds.strip())
             elif arg in ["-h", "--help"]:
                 utils.write_output(
                     """
@@ -362,7 +363,7 @@ class EdgeSQLShell(cmd.Cmd):
                     """
                 )
                 sys.exit()
-        return interactive_mode, commands
+        return interactive, cmds
 
 
 if __name__ == "__main__":
@@ -385,5 +386,5 @@ if __name__ == "__main__":
         # Execute commands non-interactively
         try:
             azion_db_shell.execute_commands(commands)
-        except Exception as e:
+        except RuntimeError as e:
             utils.write_output(f"Error executing SQL command: {e}")

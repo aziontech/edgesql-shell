@@ -1,5 +1,3 @@
-import os
-import pandas as pd
 import edgesql_kaggle as ek
 
 def import_data_kaggle(dataset_name, data_file):
@@ -15,16 +13,18 @@ def import_data_kaggle(dataset_name, data_file):
     """
     try:
         if not data_file:
-            raise Exception("Error: Please provide a valid data file from the dataset.")
+            raise ValueError("Error: Please provide a valid data file from the dataset.")
         
         if not dataset_name:
-            raise Exception("Error: Please provide a valid dataset name.")
+            raise ValueError("Error: Please provide a valid dataset name.")
 
         kaggle = ek.EdgSQLKaggle()
         
         return _import_kaggle_dataset(kaggle, dataset_name, data_file)
+    except ValueError as ve:
+        raise ve
     except Exception as e:
-        raise Exception(f'{e}')
+        raise RuntimeError(f"Unexpected error: {e}") from e
 
 def _import_kaggle_dataset(kaggle, dataset_name, data_file):
     """
@@ -41,11 +41,13 @@ def _import_kaggle_dataset(kaggle, dataset_name, data_file):
     try:
         import_success = kaggle.import_dataset(dataset_name, data_file)
         if not import_success:
-            raise Exception(f"Error: Failed to import dataset '{dataset_name}' from Kaggle.")
+            raise ValueError(f"Error: Failed to import dataset '{dataset_name}' from Kaggle.")
         
         return kaggle.get_dataset()
+    except ValueError as ve:
+        raise ve
     except Exception as e:
-        raise Exception(f"Error importing dataset '{dataset_name}' from Kaggle: {e}")
+        raise RuntimeError(f"Error importing dataset '{dataset_name}' from Kaggle: {e}") from e
 
 def importer(dataset, data_name):
     """
@@ -60,11 +62,13 @@ def importer(dataset, data_name):
     """
     try:
         if not dataset:
-            raise Exception("Error: Dataset name cannot be empty.")
+            raise ValueError("Error: Dataset name cannot be empty.")
 
         if not data_name:
-            raise Exception("Error: Data name cannot be empty.")
+            raise ValueError("Error: Data name cannot be empty.")
 
         return import_data_kaggle(dataset, data_name)
+    except ValueError as ve:
+        raise ve
     except Exception as e:
-        raise Exception(f"{e}")
+        raise RuntimeError(f"Unexpected error: {e}") from e

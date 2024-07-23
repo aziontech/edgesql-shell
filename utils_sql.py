@@ -27,7 +27,7 @@ def sql_to_list(sql_buffer):
     except ValueError as e:
         print(f"ValueError splitting SQL commands: {e}")
         return []
-    except Exception as e:
+    except RuntimeError as e:
         print(f"Unexpected error splitting SQL commands: {e}")
         return []
 
@@ -124,7 +124,7 @@ def format_sql(statement, reindent=True, keyword_case='upper'):
         formatted_statement = sqlparse.format(statement, reindent=reindent, keyword_case=keyword_case)
         return formatted_statement
     except ValueError as e:
-        raise ValueError(f"ValueError formatting SQL: {e}")
+        raise ValueError(f"ValueError formatting SQL: {e}") from e
     except Exception as e:
-        raise ValueError(f"Unexpected error formatting SQL: {e}")
+        raise ValueError(f"Unexpected error formatting SQL: {e}") from e
     

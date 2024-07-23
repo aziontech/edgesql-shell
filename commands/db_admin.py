@@ -10,14 +10,13 @@ def do_databases(shell, arg):
             databases = db_list.get('databases')
             columns = db_list.get('columns')
             if databases and columns:
-                formatted_table = tabulate(databases, headers=columns, tablefmt="fancy_grid")
-                utils.write_output(formatted_table, shell.output)
+                shell.query_output(databases,columns)
             else:
                 utils.write_output("Error: Invalid database information.")
         else:
             utils.write_output("No databases found.")
     except Exception as e:
-        utils.write_output(f"Error: {e}")
+        raise RuntimeError(f"Error: {e}") from e
 
 #command .use
 def do_use(shell, arg):
@@ -52,12 +51,11 @@ def do_dbinfo(shell, arg):
         if db_info:
             data = db_info.get('table_data')
             columns = db_info.get('columns')
-            database_info = tabulate(data, headers=columns, tablefmt="fancy_grid")
-            utils.write_output(database_info, shell.output)
+            shell.query_output(data,columns)
         else:
             utils.write_output("Error: Unable to fetch database information.")
     except Exception as e:
-        utils.write_output(f"Error: {e}")
+        raise RuntimeError(f"Error: {e}") from e
 
 #Command .create
 
@@ -85,7 +83,7 @@ def do_create(shell, arg):
     try:
         shell.edgeSql.create_database(database_name)
     except Exception as e:
-        utils.write_output(f"Error creating database: {e}")
+        raise RuntimeError(f"Error creating database: {e}") from e
 
 #Command .destroy
 def do_destroy(shell, arg):
@@ -112,4 +110,4 @@ def do_destroy(shell, arg):
     try:
         shell.edgeSql.destroy_database(database_name)
     except Exception as e:
-        utils.write_output(f"Error destroying database: {e}")
+        raise RuntimeError(f"Error destroying database: {e}") from e
