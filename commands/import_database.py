@@ -120,4 +120,4 @@ def importer(db_type, db_database, source_table):
         return pd.DataFrame(rows, columns=columns)
 
     except (mysql.connector.Error, psycopg2.Error, ValueError) as e:
-        raise Exception(f"Error during {db_type} import: {e}") from e
+        raise ValueError(f"Error during {db_type} import: {e}") from e

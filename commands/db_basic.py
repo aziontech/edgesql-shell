@@ -1,13 +1,12 @@
 import utils
-import utils_sql as sql
 
 def do_tables(shell, arg):
     """List all tables."""
+
     try:
         output = shell.edgeSql.list_tables()
     except Exception as e:
-        utils.write_output(f"Error: {e}")
-        return
+        raise RuntimeError(f"Error: {e}") from e
 
     if output is not None:
         rows = output.get('rows')
@@ -36,8 +35,7 @@ def do_schema(shell, arg):
     try:
         output = shell.edgeSql.describe_table(table_name)
     except Exception as e:
-        utils.write_output(f"Error: {e}")
-        return
+        raise RuntimeError(f"Error: {e}") from e
 
     if output is not None:
         rows = output.get('rows')

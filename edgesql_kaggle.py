@@ -27,7 +27,7 @@ class EdgSQLKaggle:
         """
         kaggle_json_path = os.path.expanduser('~/.kaggle/kaggle.json')
         if os.path.isfile(kaggle_json_path):
-            with open(kaggle_json_path, 'r') as f:
+            with open(kaggle_json_path, 'r', encoding='utf-8') as f:
                 kaggle_json_data = json.load(f)
                 kaggle_username = kaggle_json_data.get('username')
                 kaggle_key = kaggle_json_data.get('key')

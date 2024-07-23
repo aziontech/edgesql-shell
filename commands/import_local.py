@@ -33,15 +33,13 @@ def import_data(file_type, file_path):
 
         return df
     except FileNotFoundError as e:
-        raise FileNotFoundError(str(e))
-    except pd.errors.EmptyDataError:
-        raise Exception(f'The specified file "{file_path}" is empty or contains no data.')
-    except pd.errors.ParserError:
-        raise Exception(f'Error parsing "{file_path}". Please check if the file format is correct.')
+        raise FileNotFoundError(str(e)) from e
+    except pd.errors.EmptyDataError as e:
+        raise pd.errors.EmptyDataError(f'The specified file "{file_path}" is empty or contains no data.') from e
+    except pd.errors.ParserError as e:
+        raise pd.errors.ParserError(f'Error parsing "{file_path}". Please check if the file format is correct.') from e
     except ValueError as e:
-        raise ValueError(str(e))
-    except Exception as e:
-        raise Exception(f'Error importing data: {e}')
+        raise ValueError(str(e)) from e
 
 def importer(file_type, file_path):
     """
@@ -64,12 +62,11 @@ def importer(file_type, file_path):
     try:
         return import_data(file_type, file_path)
     except FileNotFoundError as e:
-        raise FileNotFoundError(f"Error: The specified file '{file_path}' does not exist.")
-    except pd.errors.EmptyDataError:
-        raise Exception(f"The specified file '{file_path}' is empty or contains no data.")
-    except pd.errors.ParserError:
-        raise Exception(f"Error parsing '{file_path}'. Please check the file format.")
+        raise FileNotFoundError(f"Error: The specified file '{file_path}' does not exist.") from e
+    except pd.errors.EmptyDataError as e:
+        raise pd.errors.EmptyDataError(f"The specified file '{file_path}' is empty or contains no data.") from e
+    except pd.errors.ParserError as e:
+        raise pd.errors.ParserError(f"Error parsing '{file_path}'. Please check the file format.") from e
     except ValueError as e:
-        raise ValueError(str(e))
-    except Exception as e:
-        raise Exception(f"Error during import: {e}")
+        raise ValueError(str(e)) from e
+    

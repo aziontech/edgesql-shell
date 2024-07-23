@@ -38,7 +38,7 @@ def _import_data(edgeSql, dataset, table_name, chunk_size=512):
 
         return True  # Import successful
     except Exception as e:
-        raise Exception(f'Error inserting data into database: {e}')
+        raise RuntimeError(f'Error inserting data into database: {e}') from e
 
 def do_import(shell, arg):
     """
@@ -124,10 +124,10 @@ def do_import(shell, arg):
             return
 
         if df is not None and not df.empty:
-           status  = _import_data(shell.edgeSql, df, table_name)
-           if status == True:
-            utils.write_output(f"Data imported successfully into table '{table_name}'.")
+            status  = _import_data(shell.edgeSql, df, table_name)
+            if status == True:
+                utils.write_output(f"Data imported successfully into table '{table_name}'.")
         else:
             utils.write_output("Error: No data to import or import failed.")
     except Exception as e:
-        raise Exception(f"Error during import: {e}")
+        raise RuntimeError(f"Error during import: {e}") from e

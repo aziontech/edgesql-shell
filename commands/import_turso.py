@@ -34,7 +34,7 @@ def importer(db_name, source_table):
     }
 
     try:
-        response = requests.post(url, headers=headers, json=request_body)
+        response = requests.post(url, headers=headers, json=request_body, timeout=30)
         response.raise_for_status()  # Raise an exception for 4XX and 5XX status codes
         json_data = response.json()
         if response.status_code == HTTPStatus.OK:  # 200
@@ -49,4 +49,4 @@ def importer(db_name, source_table):
                         # Import data into a Pandas DataFrame
                         return pd.DataFrame(rows, columns=columns)
     except requests.exceptions.RequestException as e:
-        raise Exception(f"Error during {db_name} import: {e}") from e
+        raise requests.exceptions.RequestException(f"Error during {db_name} import: {e}") from e
