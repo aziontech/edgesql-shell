@@ -35,7 +35,8 @@ class EdgeSQLShell(cmd.Cmd):
         self.command_mapping = self.__command_map()
 
         # Import and register commands from commands directory
-        self.import_commands_from_directory("commands")
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        self.import_commands_from_directory(f"{base_path}/commands")
 
     def __command_map(self):
         """Return a dictionary mapping shell commands to corresponding methods."""
