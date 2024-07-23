@@ -249,6 +249,27 @@ class EdgeSQL:
             raise requests.RequestException(f'{e}') from e
 
         return database_info
+    
+    def get_database_size(self):
+        """
+        Get size of the currently selected database in MB.
+
+        Returns:
+            str or None: A formatted table containing database information if successful, or None if failed.
+        """
+        query = 'SELECT (page_count * page_size) / 1024.0 / 1024.0 AS size_in_mb \
+                    FROM ( \
+                        SELECT (SELECT page_count FROM pragma_page_count) AS page_count, \
+                        (SELECT page_size FROM pragma_page_size) AS page_size \
+                );'
+        if self._current_database_id is None:
+            utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
+            return None
+
+        try:
+            return self.execute(query)
+        except Exception as e:
+            raise RuntimeError(f'{e}') from e
 
     def create_database(self, database_name):
         """
