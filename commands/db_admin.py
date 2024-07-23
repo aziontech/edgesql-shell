@@ -56,6 +56,19 @@ def do_dbinfo(shell, arg):
     except Exception as e:
         raise RuntimeError(f"Error: {e}") from e
 
+def do_dbsize(shell, arg):
+    """Get the size of the current database in MB."""
+    if not shell.edgeSql.get_current_database_id():
+        utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
+        return
+
+    try:
+        output = shell.edgeSql.get_database_size()
+        size = output.get('rows')
+        column = output.get('columns')
+        shell.query_output(size,column)
+    except Exception as e:
+        raise RuntimeError(f"Error: {e}") from e
 #Command .create
 
 def do_create(shell, arg):
