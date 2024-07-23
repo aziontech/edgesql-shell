@@ -1,5 +1,4 @@
 import utils
-from tabulate import tabulate
 
 #command databases
 def do_databases(shell, arg):

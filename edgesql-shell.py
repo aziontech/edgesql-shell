@@ -192,7 +192,8 @@ class EdgeSQLShell(cmd.Cmd):
             if output:
                 self.query_output(output['rows'], output['columns'])
         except Exception as er:
-            raise RuntimeError(f"Error executing SQL command: {er}") from er
+            self.multiline_command = []
+            raise RuntimeError(f"Error executing SQL command: {er}") from er   
 
         self.multiline_command = []  # Reset multiline command buffer
 
@@ -313,17 +314,17 @@ class EdgeSQLShell(cmd.Cmd):
             raise RuntimeError(f"An error occurred: {er}", '') from er
 
 
-        def execute_commands(self, cmds):
-            """Execute a list of commands."""
-            for command in cmds:    
-                if command.startswith("."):
-                    command_parts = command.split()
-                    command_name = command_parts[0]
-                    if command_name in self.command_mapping:
-                        args = ' '.join(command_parts[1:])
-                        self.command_mapping[command_name](args)
-                else:
-                    self.execute_sql_command(command)
+    def execute_commands(self, cmds):
+        """Execute a list of commands."""
+        for command in cmds:    
+            if command.startswith("."):
+                command_parts = command.split()
+                command_name = command_parts[0]
+                if command_name in self.command_mapping:
+                    args = ' '.join(command_parts[1:])
+                    self.command_mapping[command_name](args)
+            else:
+                self.execute_sql_command(command)
 
     def execute_sql_command(self, sql_command):
         """Execute a SQL command."""

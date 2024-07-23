@@ -20,6 +20,7 @@ def import_data(file_type, file_path):
         Exception: For any other unexpected errors during the import process.
     """
     try:
+        df = None
         if not os.path.isfile(file_path):
             raise FileNotFoundError(f'The specified file "{file_path}" does not exist.')
 
