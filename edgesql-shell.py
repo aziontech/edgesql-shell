@@ -349,12 +349,12 @@ class EdgeSQLShell(cmd.Cmd):
             if arg == "-n":
                 interactive = False
             elif arg.startswith("-c"):
-                cmds = arg[2:]  # Get the command after '-c'
+                command = arg[2:]  # Get the command after '-c'
                 # If the next argument exists and is not another option
                 if idx + 1 < len(arguments) and not arguments[idx + 1].startswith("-"):
                     command += arguments[idx + 1]  # Append the next argument as part of the command
                     skip_next = True  # Skip processing the next argument since it's part of the command
-                cmds.append(cmds.strip())
+                cmds.append(command.strip())
             elif arg in ["-h", "--help"]:
                 utils.write_output(
                     """

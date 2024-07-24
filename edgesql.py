@@ -112,7 +112,7 @@ class EdgeSQL:
                 msg_err = json_data.get('error', 'Unknown error')
                 raise ValueError(f'{msg_err}')
         except requests.RequestException as e:
-            raise requests.RequestException(f'{e}') from e
+            utils.write_output(f'{e}')
 
         return output
 
