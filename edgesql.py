@@ -345,7 +345,6 @@ class EdgeSQL:
                 if self._current_database_name == database_name:
                     self._current_database_id = None
                     self._current_database_name = None
-                utils.write_output('Database deleted successfully.')
             else:
                 msg_err = response.json().get('detail', 'Unknown error')
                 raise RuntimeError(f"Error deleting database: {msg_err}")
