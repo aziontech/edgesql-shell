@@ -1,5 +1,5 @@
 import utils
-
+import re
 #command databases
 def do_databases(shell, arg):
     """List all databases."""
@@ -92,6 +92,11 @@ def do_create(shell, arg):
         utils.write_output("Error: Database name cannot be empty.")
         return
     
+    # Validate the database name
+    if not re.match(r"^[A-Za-z0-9-]{6,50}$", database_name):
+        utils.write_output("Error: Database name must be between 6 and 50 characters long and contain only letters, numbers, and hyphens.")
+        return
+    
     try:
         shell.edgeSql.create_database(database_name)
     except Exception as e:
@@ -118,8 +123,15 @@ def do_destroy(shell, arg):
     if not database_name:
         utils.write_output("Error: Database name cannot be empty.")
         return
+    
+    # Confirm the action
+    confirmation = input(f"Are you sure you want to destroy the database '{database_name}'? This action cannot be undone. (yes/no): ")
+    if confirmation.lower() != 'yes':
+        utils.write_output("Database destruction aborted.")
+        return
 
     try:
         shell.edgeSql.destroy_database(database_name)
+        utils.write_output(f"Database '{database_name}' has been successfully destroyed.")
     except Exception as e:
         raise RuntimeError(f"Error destroying database: {e}") from e
