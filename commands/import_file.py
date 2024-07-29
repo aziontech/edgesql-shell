@@ -44,7 +44,7 @@ def import_data(file_type, file_path):
 
 def importer(file_type, file_path):
     """
-    Import data from a local CSV or Excel file into a pandas DataFrame.
+    Import data from a file CSV or Excel file into a pandas DataFrame.
 
     Args:
         file_type (str): The type of file to import ('csv' or 'xlsx').

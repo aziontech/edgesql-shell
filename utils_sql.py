@@ -47,7 +47,7 @@ def generate_create_table_sql(df, table_name):
         str: A SQL CREATE TABLE statement.
     """
     # Replace spaces with underscores in column names
-    df.columns = df.columns.str.replace(' ', '_')
+    df.columns = df.columns.str.replace(' ', '_').str.replace('.', '_')
 
     columns = []
     for column_name, dtype in df.dtypes.items():

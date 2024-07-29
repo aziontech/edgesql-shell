@@ -32,7 +32,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 - Output to standard output or file
 - Output on formats Tabular, CSV, JSON, HTML, Markdown, and Raw
 - Data Importation:
-	- From local files: CSV or XLSX capability
+	- From file files: CSV or XLSX capability
 	- From databases: Mysql or PostgreSQL
 	- From Kaggle Datasets
 	- From libSQL from Turso
@@ -102,7 +102,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .destroy <database_name>	                 #  Destroy a database by name
    .output stdout|file_path                         # Set the output to stdout or file
    .mode tabular|csv|html|markdown|raw              # Set output mode
-   .import params table                             # Import data from local|mysql|postgres|kaggle|turso into TABLE
+   .import params table                             # Import data from file|mysql|postgres|kaggle|turso into TABLE
    .exit				                 # Exit the EdgeSQL Shell
    ```
    
