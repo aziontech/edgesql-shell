@@ -122,9 +122,6 @@ class EdgSQLKaggle:
 
             local_file_path = self.get_local_dataset_path(dataset_name, data_file)
             self._df = pd.read_csv(local_file_path)
-
-            # Delete temporary files
-            os.remove(local_file_path)
             return True
         except ApiException as e:
             raise RuntimeError(f'Error importing Kaggle dataset "{dataset_name}": {e}') from e
