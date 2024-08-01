@@ -6,39 +6,55 @@ from commands import import_kaggle as kaggle
 from commands import import_database as database
 from commands import import_turso as turso
 
-def _import_data(edgeSql, dataset, table_name, chunk_size=512):
+def _import_data(edgeSql, dataset_generator, table_name, chunk_size=512):
     """
     Import data into a specified database table in chunks with a progress bar.
 
     Args:
         edgeSql (EdgeSQL): An instance of the EdgeSQL class.
-        dataset (pandas.DataFrame): The dataset to be imported.
+        dataset_generator (generator): A generator yielding pandas DataFrames (chunks) to be imported.
         table_name (str): The name of the database table where the data will be imported.
-        chunk_size (int, optional): Size of each data chunk for insertion. Default is 1000.
+        chunk_size (int, optional): Size of each data chunk for insertion. Default is 512.
 
     Returns:
         bool: True if the import is successful, False otherwise.
     """
     try:
-        # Check if the table exists and create it if necessary
-        if not edgeSql.exist_table(table_name):
-            create_sql = sql.generate_create_table_sql(dataset, table_name)
-            edgeSql.execute(create_sql)
+        # Initialize variables
+        total_chunks = 0
+        chunks = []
+        
+        # Pre-read to estimate total chunks
+        for chunk in dataset_generator:
+            chunks.append(chunk)
+            total_chunks += 1
+        
+        utils.write_output('Importing data...')
+        # Initialize tqdm for progress tracking
+        progress_bar = tqdm(total=total_chunks, desc="Progress", unit="chunk", dynamic_ncols=True)
 
-        total_chunks = len(dataset) // chunk_size + (1 if len(dataset) % chunk_size != 0 else 0)
+        # Reset generator
+        dataset_generator = iter(chunks)
+        # Iterate over chunks
+        for chunk in dataset_generator:
+            # Check if the table exists and create it if necessary
+            if not edgeSql.exist_table(table_name):
+                create_sql = sql.generate_create_table_sql(chunk, table_name)
+                edgeSql.execute(create_sql)
+            
+            # Generate SQL for data insertion
+            insert_sql = sql.generate_insert_sql(chunk, table_name)
+            edgeSql.execute(insert_sql)
+            
+            # Update progress bar
+            progress_bar.update(1)
 
-        with tqdm(total=total_chunks, desc="Progress", unit="chunk") as progress_bar:
-            for i, chunk in enumerate([dataset[i:i + chunk_size] for i in range(0, len(dataset), chunk_size)], 1):
-                # Generate SQL for data insertion
-                insert_sql = sql.generate_insert_sql(chunk, table_name)
-                edgeSql.execute(insert_sql)
-
-                # Update progress bar
-                progress_bar.update(1)
-
+        progress_bar.close()
+        
         return True  # Import successful
     except Exception as e:
         raise RuntimeError(f'Error inserting data into database: {e}') from e
+    return False
 
 def do_import(shell, arg):
     """
@@ -88,8 +104,8 @@ def do_import(shell, arg):
                 utils.write_output("Error: Table name cannot be empty.")
                 return
 
-            df = file.importer(file_type, file_path)
-        elif sub_command == 'kaggle':    
+            dataset_generator = file.importer(file_type, file_path)
+        elif sub_command == 'kaggle':
             dataset = args[1]
             data_name = args[2]
             table_name = args[3]
@@ -98,8 +114,8 @@ def do_import(shell, arg):
                 utils.write_output("Error: Table name cannot be empty.")
                 return
 
-            df = kaggle.importer(dataset, data_name)
-        elif sub_command in ['mysql','postgres']:
+            dataset_generator = kaggle.importer(dataset, data_name)
+        elif sub_command in ['mysql', 'postgres']:
             db_name = args[1]
             db_table_name = args[2]
             table_name = args[3]
@@ -108,7 +124,7 @@ def do_import(shell, arg):
                 utils.write_output("Error: Table name cannot be empty.")
                 return
 
-            df = database.importer(sub_command, db_name, db_table_name)
+            dataset_generator = database.importer(sub_command, db_name, db_table_name)
         elif sub_command == 'turso':
             db_name = args[1]
             db_table_name = args[2]
@@ -118,15 +134,14 @@ def do_import(shell, arg):
                 utils.write_output("Error: Table name cannot be empty.")
                 return
 
-            df = turso.importer(db_name, db_table_name)
+            dataset_generator = turso.importer(db_name, db_table_name)
         else:
             utils.write_output("Invalid arguments.")
             return
 
-        if df is not None and not df.empty:
-            status  = _import_data(shell.edgeSql, df, table_name)
-            if status == True:
-                utils.write_output(f"Data imported successfully into table '{table_name}'.")
+        status = _import_data(shell.edgeSql, dataset_generator, table_name)
+        if status == True:
+            utils.write_output(f"Data imported successfully into table '{table_name}'.")
         else:
             utils.write_output("Error: No data to import or import failed.")
     except Exception as e:

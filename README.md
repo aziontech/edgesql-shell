@@ -32,6 +32,10 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 - Output to standard output or file
 - Output on formats Tabular, CSV, JSON, HTML, Markdown, and Raw
 - Data Importation:
+	- Adaptive chunk estimation
+	- Vector Similarity Search support:
+		- Datatype (F32_BLOB / FLOAT32)
+		- Use vector function to convert vector from string representation into the binary format
 	- From file files: CSV or XLSX capability
 	- From databases: Mysql or PostgreSQL
 	- From Kaggle Datasets
