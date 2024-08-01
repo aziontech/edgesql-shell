@@ -20,6 +20,10 @@ class EdgSQLKaggle:
         self.api = None
         self._authenticate_kaggle()
         self._df = None
+        self.download_dir = "./kaggle_datasets"
+
+        if not os.path.exists(self.download_dir):
+            os.makedirs(self.download_dir)
 
     def _load_credentials(self):
         """
@@ -66,6 +70,19 @@ class EdgSQLKaggle:
         """
         return self._df
 
+    def get_local_dataset_path(self, dataset_name, data_file):
+        """
+        Get the local file path of the dataset.
+
+        Args:
+            dataset_name (str): The name of the dataset on Kaggle.
+            data_file (str): The name of the file within the dataset.
+
+        Returns:
+            str: The local file path of the dataset.
+        """
+        return os.path.join(self.download_dir, dataset_name.replace('/', '_'), data_file)
+
     def import_dataset(self, dataset_name, data_file):
         """
         Download and import a dataset from Kaggle.
@@ -88,17 +105,26 @@ class EdgSQLKaggle:
             raise RuntimeError('Error: Kaggle API not authenticated.')
 
         try:
+            # Prepare directory for dataset
+            dataset_dir = os.path.join(self.download_dir, dataset_name.replace('/', '_'))
+            if not os.path.exists(dataset_dir):
+                os.makedirs(dataset_dir)
+
             # Download the Kaggle dataset
-            self.api.dataset_download_file(dataset_name, data_file)
-            zip_file = data_file + '.zip'
-            if zipfile.is_zipfile(zip_file):
-                with zipfile.ZipFile(zip_file, 'r') as zip_ref:
-                    zip_ref.extractall('.')  
-                os.remove(zip_file)
-            self._df = pd.read_csv(data_file)
+            self.api.dataset_download_file(dataset_name, data_file, path=dataset_dir)
+            zip_file_path = os.path.join(dataset_dir, data_file + '.zip')
+
+            # Extract the downloaded zip file
+            if zipfile.is_zipfile(zip_file_path):
+                with zipfile.ZipFile(zip_file_path, 'r') as zip_ref:
+                    zip_ref.extractall(dataset_dir)
+                os.remove(zip_file_path)
+
+            local_file_path = self.get_local_dataset_path(dataset_name, data_file)
+            self._df = pd.read_csv(local_file_path)
 
             # Delete temporary files
-            os.remove(data_file)
+            os.remove(local_file_path)
             return True
         except ApiException as e:
             raise RuntimeError(f'Error importing Kaggle dataset "{dataset_name}": {e}') from e
