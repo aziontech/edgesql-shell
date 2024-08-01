@@ -107,6 +107,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    .output stdout|file_path                         # Set the output to stdout or file
    .mode tabular|csv|html|markdown|raw              # Set output mode
    .import params table                             # Import data from file|mysql|postgres|kaggle|turso into TABLE
+   .dbsize				                 # Get the size of the current database in MB
    .exit				                 # Exit the EdgeSQL Shell
    ```
    
@@ -141,7 +142,6 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    export MYSQL_SSL_CA="ssl_ca"
    export MYSQL_SSL_CERT="ssl_cert"
    export MYSQL_SSL_KEY="ssl_key"
-   export MYSQL_SSL_KEY="ssl_key"
    export MYSQL_SSL_VERIFY_CERT=True|False
  ```
  
@@ -162,7 +162,6 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    # For TLS connection
    export POSTGRES_SSL_CA="ssl_ca"
    export POSTGRES_SSL_CERT="ssl_cert"
-   export POSTGRES_SSL_KEY="ssl_key"
    export POSTGRES_SSL_KEY="ssl_key"
    export POSTGRES_SSL_VERIFY_CERT=True|False
  ```
