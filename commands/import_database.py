@@ -4,18 +4,7 @@ import mysql.connector
 import psycopg2
 from psycopg2 import sql, OperationalError
 from halo import Halo
-
-def get_size_of_chunk(df):
-    """
-    Calculate the size of a DataFrame in bytes.
-
-    Args:
-        df (pandas.DataFrame): The DataFrame.
-
-    Returns:
-        int: The size of the DataFrame in bytes.
-    """
-    return df.memory_usage(index=True, deep=True).sum()
+import utils
 
 def is_remote(host):
     """
@@ -176,6 +165,21 @@ def fetch_data_from_table(db_type, cursor, source_table, limit, offset):
     else:
         raise ValueError("Unsupported database type.")
 
+
+def get_size_of_row(row, columns):
+    """
+    Calculate the size of a single row in bytes.
+
+    Args:
+        row (list): The row of data.
+        columns (list): The column names.
+
+    Returns:
+        int: The size of the row in bytes.
+    """
+    df = pd.DataFrame([row], columns=columns)
+    return df.memory_usage(index=True, deep=True).sum()
+
 def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_size_mb=0.8):
     """
     Import data from a database in chunks.
@@ -230,47 +234,63 @@ def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_s
         """
         offset = 0
         max_chunk_size_bytes = max_chunk_size_mb * 1024 * 1024
+        estimated_row_size = None
+        estimated_limit = max_chunk_rows
 
         spinner = Halo(text='Analyzing source table and calculating chunks...', spinner='line')
         spinner.start()
 
-        while True:
+        try:
             with connect_database(db_type, use_tls, connection_args) as conn:
                 with conn.cursor() as cursor:
-                    rows = []
-                    current_chunk_size = 0
-                    columns = []
+                    while True:
+                        rows = []
+                        current_chunk_size = 0
+                        columns = []
 
-                    while len(rows) < max_chunk_rows and current_chunk_size < max_chunk_size_bytes:
-                        limit = max_chunk_rows - len(rows)
-                        fetched_rows, description = fetch_data_from_table(db_type, cursor, source_table, limit, offset)
+                        while len(rows) < max_chunk_rows and current_chunk_size < max_chunk_size_bytes:
+                            fetched_rows, description = fetch_data_from_table(db_type, cursor, source_table, estimated_limit, offset)
 
-                        if not fetched_rows:
+                            if not fetched_rows:
+                                break
+
+                            if not columns and description:
+                                columns = [col[0] for col in description]
+
+                            rows.extend(fetched_rows)
+                            offset += len(fetched_rows)
+
+                            current_chunk_size = utils.total_size(rows)
+                            estimated_row_size = current_chunk_size / len(rows)
+
+                            if current_chunk_size > max_chunk_size_bytes:
+                                excess_size = current_chunk_size - max_chunk_size_bytes
+                                rows_to_remove = max(1,int(excess_size / estimated_row_size))
+
+                                rows = rows[:-rows_to_remove]
+                                offset -= rows_to_remove
+                                current_chunk_size -= estimated_row_size * rows_to_remove
+                                estimated_limit = len(rows)
+                                break
+
+                        if not rows:
                             break
-
-                        rows.extend(fetched_rows)
-                        offset += len(fetched_rows)
-
-                        if not columns and cursor.description:
-                            columns = [col[0] for col in description]
-
+                        
+                        print(f'final current_chunk_size={current_chunk_size} - rows={len(rows)} - offset={offset} - limit={estimated_limit}')
+                        
                         df_chunk = pd.DataFrame(rows, columns=columns)
-                        current_chunk_size = get_size_of_chunk(df_chunk)
+                        yield df_chunk
 
-                        if current_chunk_size > max_chunk_size_bytes:
-                            while current_chunk_size > max_chunk_size_bytes and len(rows) > 0:
-                                rows.pop()
-                                df_chunk = pd.DataFrame(rows, columns=columns)
-                                current_chunk_size = get_size_of_chunk(df_chunk)
+                        # Adjust estimated_limit for the next iteration
+                        if current_chunk_size < max_chunk_size_bytes * 0.75:
+                            estimated_limit = min(max_chunk_rows, estimated_limit * 2)
 
-                            offset -= len(fetched_rows) - len(rows)
-                            break
-                    if not rows:
-                        break
-
-                    yield df_chunk
-
-        spinner.succeed('Data analysis completed!')
+            spinner.succeed('Data analysis completed!')
+        except Exception as e:
+            spinner.fail('Error during data analysis!')
+            raise e
+        except KeyboardInterrupt:
+            spinner.stop()
+            print("Data analysis interrupted!")
 
     return fetch_chunks()
-

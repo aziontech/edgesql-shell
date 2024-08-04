@@ -9,13 +9,13 @@ def do_databases(shell, arg):
             databases = db_list.get('databases')
             columns = db_list.get('columns')
             if databases and columns:
-                shell.query_output(databases,columns)
+                shell.query_output(databases, columns)
             else:
                 utils.write_output("Error: Invalid database information.")
         else:
             utils.write_output("No databases found.")
     except Exception as e:
-        raise RuntimeError(f"Error: {e}") from e
+        raise RuntimeError(f"Error listing databases: {e}") from e
 
 #command .use
 def do_use(shell, arg):
@@ -34,9 +34,14 @@ def do_use(shell, arg):
         utils.write_output("Invalid database name.")
         return
 
-    if shell.edgeSql.set_current_database(database_name):
-        shell.update_prompt()
-        utils.write_output(f"Switched to database '{arg}'.")
+    try:
+        if shell.edgeSql.set_current_database(database_name):
+            shell.update_prompt()
+            utils.write_output(f"Switched to database '{arg}'.")
+        else:
+            utils.write_output(f"Failed to switch to database '{arg}'.")
+    except Exception as e:
+        raise RuntimeError(f"Error switching database: {e}") from e
 
 #comand .dbinfo
 def do_dbinfo(shell, arg):
@@ -50,12 +55,13 @@ def do_dbinfo(shell, arg):
         if db_info:
             data = db_info.get('table_data')
             columns = db_info.get('columns')
-            shell.query_output(data,columns)
+            shell.query_output(data, columns)
         else:
             utils.write_output("Error: Unable to fetch database information.")
     except Exception as e:
-        raise RuntimeError(f"Error: {e}") from e
+        raise RuntimeError(f"Error fetching database info: {e}") from e
 
+# Command .dbsize
 def do_dbsize(shell, arg):
     """Get the size of the current database in MB."""
     if not shell.edgeSql.get_current_database_id():
@@ -64,13 +70,14 @@ def do_dbsize(shell, arg):
 
     try:
         output = shell.edgeSql.get_database_size()
-        size = output.get('rows')
-        column = output.get('columns')
-        shell.query_output(size,column)
+        if not output['success']:
+            utils.write_output(f"{output['error']}")
+            return
+        shell.query_output(output['data']['rows'], output['data']['columns'])
     except Exception as e:
-        raise RuntimeError(f"Error: {e}") from e
-#Command .create
+        raise RuntimeError(f"Error fetching database size: {e}") from e
 
+#command .create
 def do_create(shell, arg):
     """
     Create a new database.
@@ -99,10 +106,11 @@ def do_create(shell, arg):
     
     try:
         shell.edgeSql.create_database(database_name)
+        utils.write_output(f"Database '{database_name}' created successfully.")
     except Exception as e:
         raise RuntimeError(f"Error creating database: {e}") from e
 
-#Command .destroy
+#command .destroy
 def do_destroy(shell, arg):
     """
     Destroy a database by name.
@@ -131,7 +139,10 @@ def do_destroy(shell, arg):
         return
 
     try:
-        shell.edgeSql.destroy_database(database_name)
-        utils.write_output(f"Database '{database_name}' has been successfully destroyed.")
+        status = shell.edgeSql.destroy_database(database_name)
+        if status:
+            utils.write_output(f"Database '{database_name}' has been successfully destroyed.")
+        else:
+            utils.write_output(f"Failed to destroy database '{database_name}'.")
     except Exception as e:
         raise RuntimeError(f"Error destroying database: {e}") from e

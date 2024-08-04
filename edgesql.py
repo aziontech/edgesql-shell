@@ -14,7 +14,7 @@ class EdgeSQL:
         Args:
             token (str): The API token for authentication.
         """
-        self.timeout=45
+        self.timeout=120
         self._token = token
         self._current_database_id = None
         self._current_database_name = None
@@ -67,54 +67,66 @@ class EdgeSQL:
             buffer (str or list): The SQL commands to execute, either as a string or a list of strings.
 
         Returns:
-            dict or None: The result of the SQL execution, including columns and rows if successful, or None if failed.
+            dict: A dictionary containing 'success' (bool) and 'data' (dict or None) or 'error' (str).
         """
-        output = None
+        result = {'success': False, 'data': None, 'error': None}
+
+        # Check if a database is selected
         if self._current_database_id is None:
-            utils.write_output("No database selected. Use '.use <database_name>' to select a database.")
-            return
+            error_msg = "No database selected. Use '.use <database_name>' to select a database."
+            result['error'] = error_msg
+            return result
 
+        # Check if buffer is provided
         if not buffer:
-            utils.write_output("No SQL commands provided.")
-            return
+            error_msg = "No SQL commands provided."
+            result['error'] = error_msg
+            return result
 
+        # Convert buffer to list of SQL commands
         if isinstance(buffer, list):
             sql_commands = buffer
         elif isinstance(buffer, str):
             sql_commands = sql.sql_to_list(buffer)
         else:
-            utils.write_output("Invalid SQL commands format.")
-            return
+            error_msg = "Invalid SQL commands format."
+            result['error'] = error_msg
+            return result
 
+        # Prepare the request
         url = f'{self._base_url}/{self._current_database_id}/query'
         data = {"statements": sql_commands}
         self.transaction = False
 
         try:
             response = requests.post(url, json=data, headers=self.__headers(), timeout=self.timeout)
-            response.raise_for_status()
             json_data = response.json()
 
-            if response.status_code == HTTPStatus.OK:  # 200
+            if response.status_code == HTTPStatus.OK:
                 result_data = json_data.get('data', [])
                 if result_data:
-                    result = result_data[0]
-                    if 'error' in result:
-                        raise RuntimeError(f'{result.get("error")}')
+                    query_result = result_data[0]
+                    if 'error' in query_result:
+                        error_msg = f"{query_result.get('error')}"
+                        result['error'] = error_msg
                     else:
-                        results = result.get('results', {})
+                        results = query_result.get('results', {})
                         columns = results.get('columns', [])
                         rows = results.get('rows', [])
-                        output = {'columns': columns, 'rows': rows}
+                        result['data'] = {'columns': columns, 'rows': rows}
+                        result['success'] = True
                 else:
-                    raise ValueError("Empty or invalid response data.")
+                    error_msg = "Empty or invalid response data."
+                    result['error'] = error_msg
             else:
-                msg_err = json_data.get('error', 'Unknown error')
-                raise ValueError(f'{msg_err}')
+                error_msg = json_data.get('error', 'Unknown error')
+                result['error'] = error_msg
         except requests.RequestException as e:
-            utils.write_output(f'{e}')
+            error_msg = f"Request error: {e}"
+            result['error'] = error_msg
 
-        return output
+        return result
+
 
     def list_databases(self):
         """
@@ -125,7 +137,6 @@ class EdgeSQL:
         """
         try:
             response = requests.get(self._base_url, headers=self.__headers(), timeout=self.timeout)
-            response.raise_for_status()
             json_data = response.json()
 
             if response.status_code == HTTPStatus.OK:  # 200
@@ -159,7 +170,6 @@ class EdgeSQL:
         """
         try:
             response = requests.get(self._base_url, headers=self.__headers(), timeout=self.timeout)
-            response.raise_for_status()
             json_data = response.json()
 
             if response.status_code == HTTPStatus.OK:  # 200
@@ -171,8 +181,6 @@ class EdgeSQL:
                             self._current_database_name = db['name']
                             return True
                     utils.write_output(f"Database '{database_name}' not found.")
-                else:
-                    utils.write_output("No databases found.")
             else:
                 msg_err = json_data.get('detail', 'Unknown error')
                 raise ValueError(f'{msg_err}')
@@ -225,7 +233,6 @@ class EdgeSQL:
         url = f'{self._base_url}/{self._current_database_id}'
         try:
             response = requests.get(url, headers=self.__headers(), timeout=self.timeout)
-            response.raise_for_status()
             json_data = response.json()
 
             if response.status_code == HTTPStatus.OK:  # 200
@@ -279,42 +286,41 @@ class EdgeSQL:
             database_name (str): The name of the new database.
 
         Returns:
-            None
+            bool: True if the database was successfully created, False otherwise.
         """
         if not database_name:
             utils.write_output("Usage: create_database <database_name>")
-            return
+            return False
 
         data = {"name": database_name}
 
         try:
             response = requests.post(self._base_url, json=data, headers=self.__headers(), timeout=self.timeout)
-            response.raise_for_status()
             json_data = response.json()
 
-            if response.status_code == HTTPStatus.ACCEPTED or response.status_code == HTTPStatus.CREATED:  # 201/202
+            if response.status_code in [HTTPStatus.ACCEPTED, HTTPStatus.CREATED]:  # 201/202
                 data = json_data.get('data')
                 if data:
                     db_id = data.get('id')
                     db_name = data.get('name')
                     if db_id is not None and db_name is not None:
                         utils.write_output(f"New database created. ID: {db_id}, Name: {db_name}")
-                        return
-                    else:
-                        raise ValueError("Unexpected response format.")
-                else:
-                    raise ValueError("Unexpected response format.")
+                        return True
+                utils.write_output("Unexpected response format.")
+                return False
             else:
                 error_detail = json_data.get('detail', 'Unknown error')
                 error_name = json_data.get('name', '')
                 if error_detail:
-                    raise RuntimeError(f"Error creating database: {error_detail}")
+                    utils.write_output(f"Error creating database: {error_detail}")
                 elif error_name:
-                    raise RuntimeError(f"Error creating database: {error_name[0]}")
+                    utils.write_output(f"Error creating database: {error_name[0]}")
                 else:
-                    raise RuntimeError(f"Error creating database: {response.status_code}")
+                    utils.write_output(f"Error creating database: {response.status_code}")
+                return False
         except requests.RequestException as e:
-            raise requests.RequestException(f"Error creating database: {e}") from e
+            utils.write_output(f"Error creating database: {e}")
+            return False
 
     def destroy_database(self, database_name):
         """
@@ -324,30 +330,32 @@ class EdgeSQL:
             database_name (str): The name of the database to destroy.
 
         Returns:
-            None
+            bool: True if the database was successfully destroyed, False otherwise.
         """
         if not database_name:
             utils.write_output("Usage: destroy_database <database_name>")
-            return
+            return False
 
         database_id = self.get_database_id(database_name)
         if not database_id:
             utils.write_output(f"Database '{database_name}' not found.")
-            return
+            return False
 
         url = f'{self._base_url}/{database_id}'
 
         try:
             response = requests.delete(url, headers=self.__headers(), timeout=self.timeout)
-            response.raise_for_status()
+            #response.raise_for_status()
 
             if response.status_code == HTTPStatus.ACCEPTED:  # 202
                 if self._current_database_name == database_name:
                     self._current_database_id = None
                     self._current_database_name = None
+                return True
             else:
                 msg_err = response.json().get('detail', 'Unknown error')
-                raise RuntimeError(f"Error deleting database: {msg_err}")
+                utils.write_output(f"Error deleting database: {msg_err}")
+                return False
         except requests.RequestException as e:
             raise requests.RequestException(f"Error deleting database: {e}") from e
 
@@ -395,10 +403,13 @@ class EdgeSQL:
         query = f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';"
         try:
             result = self.execute(query)
+            if result['success'] == False:
+                return False
         except Exception as e:
             raise RuntimeError(f'{e}') from e
 
-        if isinstance(result, dict) and 'rows' in result and len(result['rows']) > 0:
+        data = result.get('data', {})
+        if 'rows' in data and len(data['rows']) > 0:
             return True
         else:
             return False
