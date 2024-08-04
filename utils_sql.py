@@ -151,6 +151,7 @@ def generate_insert_sql(df, table_name):
         list: A list of SQL INSERT statements.
     """
     sql_commands = []
+    df.columns = df.columns.str.replace(' ', '_').str.replace('.', '_')
     vector_columns = identify_vector_columns(df)
     column_names = df.columns.tolist()
     columns = ", ".join(df.columns)

@@ -20,7 +20,6 @@ def _import_data(edgeSql, dataset_generator, table_name, chunk_size=512):
         bool: True if the import is successful, False otherwise.
     """
     try:
-        # Initialize variables
         total_chunks = 0
         chunks = []
         
@@ -30,30 +29,33 @@ def _import_data(edgeSql, dataset_generator, table_name, chunk_size=512):
             total_chunks += 1
         
         utils.write_output('Importing data...')
-        # Initialize tqdm for progress tracking
         progress_bar = tqdm(total=total_chunks, desc="Progress", unit="chunk", dynamic_ncols=True)
 
-        # Reset generator
+        # Import chunks
         dataset_generator = iter(chunks)
-        # Iterate over chunks
         for chunk in dataset_generator:
-            # Check if the table exists and create it if necessary
             if not edgeSql.exist_table(table_name):
                 create_sql = sql.generate_create_table_sql(chunk, table_name)
-                edgeSql.execute(create_sql)
-            
-            # Generate SQL for data insertion
+                result = edgeSql.execute(create_sql)
+                if not result['success']:
+                    utils.write_output(f"Error creating table: {result['error']}")
+                    return False
+
+            # Generate SQL for data insertion if not exist
             insert_sql = sql.generate_insert_sql(chunk, table_name)
-            edgeSql.execute(insert_sql)
+            result = edgeSql.execute(insert_sql)
+            if not result['success']:
+                utils.write_output(f"Error inserting data: {result['error']}")
+                return False
             
             # Update progress bar
             progress_bar.update(1)
 
         progress_bar.close()
         
-        return True  # Import successful
+        return True
     except Exception as e:
-        raise RuntimeError(f'Error inserting data into database: {e}') from e
+        raise RuntimeError(f'{e}') from e
     return False
 
 def do_import(shell, arg):
@@ -140,7 +142,7 @@ def do_import(shell, arg):
             return
 
         status = _import_data(shell.edgeSql, dataset_generator, table_name)
-        if status == True:
+        if status:
             utils.write_output(f"Data imported successfully into table '{table_name}'.")
         else:
             utils.write_output("Error: No data to import or import failed.")

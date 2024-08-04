@@ -1,4 +1,5 @@
 import sys
+from collections import deque
 
 def write_output(message, destination='', mode='a'):
     """
@@ -48,3 +49,38 @@ def signal_handler(sig, frame):
     """Handle Ctrl+C signal."""
     write_output('\nCtrl+C pressed. Exiting EdgeSQL Shell.')
     sys.exit(0)
+
+def total_size(obj, seen=None):
+    """Recursively finds size of objects, accounting for contents."""
+    seen = seen or set()
+    size = 0
+    objects = deque([obj])
+
+    while objects:
+        current = objects.popleft()
+        if id(current) in seen:
+            continue
+        seen.add(id(current))
+        size += sys.getsizeof(current)
+
+        if isinstance(current, dict):
+            objects.extend(current.keys())
+            objects.extend(current.values())
+        elif hasattr(current, '__dict__'):
+            objects.append(current.__dict__)
+        elif hasattr(current, '__iter__') and not isinstance(current, (str, bytes, bytearray)):
+            objects.extend(current)
+    
+    return size
+
+def get_size_of_chunk(chunk):
+    """
+    Calculate the size of a DataFrame chunk in bytes.
+
+    Args:
+        chunk (pandas.DataFrame): The DataFrame chunk.
+
+    Returns:
+        int: The size of the DataFrame chunk in bytes.
+    """
+    return chunk.memory_usage(index=True, deep=True).sum()

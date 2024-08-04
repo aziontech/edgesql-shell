@@ -21,7 +21,7 @@ class EdgeSQLShell(cmd.Cmd):
         Initialize EdgeSQLShell object.
 
         Args:
-            edgesql (EdgeSQL): An instance of the EdgeSQL class.
+            edgesql_instance (EdgeSQL): An instance of the EdgeSQL class.
         """
         super().__init__()
         self.edgeSql = edgesql_instance
@@ -40,12 +40,11 @@ class EdgeSQLShell(cmd.Cmd):
 
     def __command_map(self):
         """Return a dictionary mapping shell commands to corresponding methods."""
-        command_mapping = {
+        return {
             ".exit": self.do_exit,
             ".output": self.do_output,
             ".mode": self.do_mode,
         }
-        return command_mapping
 
     def import_commands_from_directory(self, directory):
         """Dynamically import and register commands from a specified directory."""
@@ -80,11 +79,8 @@ class EdgeSQLShell(cmd.Cmd):
     def get_all_commands(self, text):
         """Get all commands including dynamically loaded commands."""
         available_commands = list(self.command_mapping.keys())
-        if text:
-            return [cmd for cmd in available_commands if cmd.startswith(text)]
-        else:
-            return available_commands
-    
+        return [cmd for cmd in available_commands if cmd.startswith(text)] if text else available_commands
+
     def completenames(self, text, *ignored):
         """Tab-completion for all commands."""
         return self.get_all_commands(text)
@@ -124,10 +120,8 @@ class EdgeSQLShell(cmd.Cmd):
 
     def update_prompt(self):
         """Update the command prompt."""
-        if self.edgeSql.get_current_database_name():
-            self.prompt = f'EdgeSQL ({self.edgeSql.get_current_database_name()})> '
-        else:
-            self.prompt = 'EdgeSQL> '
+        db_name = self.edgeSql.get_current_database_name()
+        self.prompt = f'EdgeSQL ({db_name})> ' if db_name else 'EdgeSQL> '
 
     def do_exit(self, arg):
         """Exit the shell."""
@@ -147,9 +141,9 @@ class EdgeSQLShell(cmd.Cmd):
         if not arg:
             utils.write_output("Usage: .output stdout|file_path")
             return
-        
+
+        output_mode = arg.split()[0].lower()
         try:
-            output_mode = arg.split()[0].lower()
             if output_mode == 'stdout':
                 self.output = ''
                 utils.write_output("Output set to stdout.")
@@ -159,7 +153,7 @@ class EdgeSQLShell(cmd.Cmd):
                 self.output = output_mode
                 utils.write_output(f"Output set to file: {output_mode}")
         except ValidationError as er:
-            raise ValidationError(f"Error: {er}") from er
+            utils.write_output(f"Error: {er}")
 
     def do_mode(self, arg):
         """
@@ -168,9 +162,9 @@ class EdgeSQLShell(cmd.Cmd):
         Args:
             arg (str): Output mode ('excel', 'tabular', 'csv', 'json','html', 'markdown', 'raw').
         """
-        mode_lst = ['excel', 'tabular','csv','json','html','markdown','raw']
+        mode_lst = ['excel', 'tabular', 'csv', 'json', 'html', 'markdown', 'raw']
         arg_lower = arg.lower() if arg else None
-    
+
         if not arg_lower or arg_lower not in mode_lst:
             utils.write_output("Usage: .mode excel|tabular|csv|json|html|markdown|raw")
             return
@@ -179,7 +173,7 @@ class EdgeSQLShell(cmd.Cmd):
         utils.write_output(f"Output mode set to: {arg_lower}")
 
     def execute_sql_command_multiline(self):
-        """Execute a multiline command command."""
+        """Execute a multiline command."""
         if not self.multiline_command:
             return
 
@@ -190,33 +184,31 @@ class EdgeSQLShell(cmd.Cmd):
 
         try:
             output = self.edgeSql.execute(sql_command)
-            if output:
-                self.query_output(output['rows'], output['columns'])
-        except Exception as er:
+            if not output['success']:
+                utils.write_output(f"{output['error']}")
+            if output.get('data'):
+                self.query_output(output['data']['rows'], output['data']['columns'])
+        except RuntimeError as er:
             self.multiline_command = []
-            raise RuntimeError(f"Error executing SQL command: {er}") from er   
-
-        self.multiline_command = []  # Reset multiline command buffer
+            utils.write_output(f"Error executing SQL command: {er}")
+        finally:
+            self.multiline_command = []  # Reset multiline command buffer
 
     def default(self, line):
         """Execute SQL command and handle multiline input."""
         try:
             arg = line.strip()
             if arg:
-                # New command
                 self.last_command = line
-            
-                # Check if the command starts with a dot (indicating a shell command)
+
                 if arg.startswith("."):
                     command, *args = arg.split(" ")
-                    command_map = self.command_mapping  # Get the command mapping
-                    # Execute the corresponding method if the command is recognized
-                    if command in command_map:
-                        return command_map[command](" ".join(args))
+                    if command in self.command_mapping:
+                        return self.command_mapping[command](" ".join(args))
                     else:
                         utils.write_output("Invalid command.")
                 elif self.multiline_command:
-                    if utils.contains_any(arg,IGNORE_TOKENS):
+                    if utils.contains_any(arg, IGNORE_TOKENS):
                         pass
                     elif any('begin' in cmd.lower() for cmd in self.multiline_command):
                         # Multi-line command with 'begin', accumulate lines
@@ -237,34 +229,31 @@ class EdgeSQLShell(cmd.Cmd):
                             return
                         elif 'rollback' in arg.lower():
                             self.transaction = False
-                            self.multiline_command = ''
-                            return
+                            self.multiline_command = []
                         else:
                             self.multiline_command.append(arg)
-                        
                 else:
                     if utils.contains_any(arg, IGNORE_TOKENS + ['END;']):
                         pass
                     elif 'transaction' in arg.lower():
                         self.transaction = True
-                        pass
                     elif arg.endswith(';') and not self.transaction:
-                        # Single-line command, execute immediately
-                        try: 
+		       # Single-line command, execute immediately
+                        try:
                             output = self.edgeSql.execute(arg)
+                            if not output['success']:
+                                utils.write_output(f"{output['error']}")
+                                return
                         except RuntimeError as er:
                             utils.write_output(f"Error executing SQL command: {er}")
-                            output = None
-                        if output:
-                            self.query_output(output['rows'], output['columns'])
-                        return
+                            return
+                        if output.get('data'):
+                            self.query_output(output['data']['rows'], output['data']['columns'])
                     else:
                         # Multi-line command, accumulate lines
                         self.multiline_command.append(arg)
-            else:
-                pass
         except RuntimeError as er:
-            utils.write_output(f"{er}", '')
+            utils.write_output(f"{er}")
 
     def query_output(self, rows, columns):
         """Format and output query results."""
@@ -290,7 +279,7 @@ class EdgeSQLShell(cmd.Cmd):
 
         try:
             if self.outFormat == 'excel' and not self.output.endswith(".xlsx"):
-                utils.write_output('For "excel" mode, the output file must have the extension .xlsx', '')
+                utils.write_output('For "excel" mode, the output file must have the extension .xlsx')
             elif self.output == '':
                 if self.outFormat in ['csv', 'json', 'html', 'raw']:
                     output_to_buffer(format_map[self.outFormat])
@@ -311,13 +300,12 @@ class EdgeSQLShell(cmd.Cmd):
                     utils.write_output(formatted_data, self.output)
                 elif self.outFormat == 'excel':
                     df.to_excel(self.output, index=False)
-        except Exception as er:
-            raise RuntimeError(f"An error occurred: {er}", '') from er
-
+        except RuntimeError as er:
+            utils.write_output(f"An error occurred: {er}")
 
     def execute_commands(self, cmds):
         """Execute a list of commands."""
-        for command in cmds:    
+        for command in cmds:
             if command.startswith("."):
                 command_parts = command.split()
                 command_name = command_parts[0]
@@ -331,10 +319,12 @@ class EdgeSQLShell(cmd.Cmd):
         """Execute a SQL command."""
         try:
             output = self.edgeSql.execute(sql_command)
-            if output:
-                self.query_output(output['rows'], output['columns'])
-        except Exception as er:
-            raise RuntimeError(f"Error executing SQL command: {er}") from er
+            if not output['success']:
+                utils.write_output(f"{output['error']}")
+            if output.get('data'):
+                self.query_output(output['data']['rows'], output['data']['columns'])
+        except RuntimeError as er:
+            utils.write_output(f"Error executing SQL command: {er}")
 
     def process_arguments(self, arguments):
         """Process command-line arguments."""
