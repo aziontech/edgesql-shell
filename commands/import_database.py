@@ -276,8 +276,6 @@ def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_s
                         if not rows:
                             break
                         
-                        print(f'final current_chunk_size={current_chunk_size} - rows={len(rows)} - offset={offset} - limit={estimated_limit}')
-                        
                         df_chunk = pd.DataFrame(rows, columns=columns)
                         yield df_chunk
 
