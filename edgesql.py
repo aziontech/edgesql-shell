@@ -104,7 +104,7 @@ class EdgeSQL:
             try:
                 json_data = response.json()
             except json.JSONDecodeError as e:
-                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}")
+                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
 
             if response.status_code == HTTPStatus.OK:
                 result_data = json_data.get('data', [])
@@ -144,7 +144,7 @@ class EdgeSQL:
             try:
                 json_data = response.json()
             except json.JSONDecodeError as e:
-                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}")
+                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
 
             if response.status_code == HTTPStatus.OK:  # 200
                 databases = json_data.get('results')
@@ -180,7 +180,7 @@ class EdgeSQL:
             try:
                 json_data = response.json()
             except json.JSONDecodeError as e:
-                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}")
+                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
 
             if response.status_code == HTTPStatus.OK:  # 200
                 databases = json_data.get('results')
@@ -214,7 +214,7 @@ class EdgeSQL:
             try:
                 json_data = response.json()
             except json.JSONDecodeError as e:
-                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}")
+                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
 
             if response.status_code == HTTPStatus.OK:  # 200
                 databases = json_data.get('results',[])
@@ -248,7 +248,7 @@ class EdgeSQL:
             try:
                 json_data = response.json()
             except json.JSONDecodeError as e:
-                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}")
+                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
 
             if response.status_code == HTTPStatus.OK:  # 200
                 data = json_data.get('data')
@@ -314,7 +314,7 @@ class EdgeSQL:
             try:
                 json_data = response.json()
             except json.JSONDecodeError as e:
-                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}")
+                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
 
             if response.status_code in [HTTPStatus.ACCEPTED, HTTPStatus.CREATED]:  # 201/202
                 data = json_data.get('data')
