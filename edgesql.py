@@ -101,10 +101,17 @@ class EdgeSQL:
 
         try:
             response = requests.post(url, json=data, headers=self.__headers(), timeout=self.timeout)
+
+            # Check if the response content is empty
+            if not response.content:
+                result['error'] = f"Empty response from server. statusCode={response.status_code}"
+                return result
+
             try:
                 json_data = response.json()
             except json.JSONDecodeError as e:
-                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
+                result['error'] = f"Error decoding JSON response: {e}. statusCode={response.status_code}"
+                return result
 
             if response.status_code == HTTPStatus.OK:
                 result_data = json_data.get('data', [])
