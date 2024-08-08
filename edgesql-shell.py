@@ -245,7 +245,7 @@ class EdgeSQLShell(cmd.Cmd):
                                 utils.write_output(f"{output['error']}")
                                 return
                         except RuntimeError as er:
-                            utils.write_output(f"Error executing SQL command: {er}")
+                            utils.write_output(f"{er}")
                             return
                         if output.get('data'):
                             self.query_output(output['data']['rows'], output['data']['columns'])
