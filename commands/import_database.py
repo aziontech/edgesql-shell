@@ -180,6 +180,32 @@ def get_size_of_row(row, columns):
     df = pd.DataFrame([row], columns=columns)
     return df.memory_usage(index=True, deep=True).sum()
 
+def table_exists(cursor, db_type, table_name):
+    """
+    Check if a table exists in the current database.
+
+    Args:
+        cursor (Cursor): The database cursor.
+        db_type (str): The type of the database ('mysql' or 'postgres').
+        table_name (str): The name of the table to check.
+
+    Returns:
+        bool: True if the table exists, False otherwise.
+
+    Raises:
+        ValueError: If the database type is unsupported.
+    """
+    if db_type == 'mysql':
+        cursor.execute(f"SHOW TABLES LIKE '{table_name}';")
+    elif db_type == 'postgres':
+        cursor.execute(f"SELECT to_regclass('{table_name}');")
+    else:
+        raise ValueError(f"Unsupported database type: {db_type}")
+
+    result = cursor.fetchone()
+    return bool(result and result[0])
+
+
 def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_size_mb=0.8):
     """
     Import data from a database in chunks.
@@ -243,6 +269,10 @@ def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_s
         try:
             with connect_database(db_type, use_tls, connection_args) as conn:
                 with conn.cursor() as cursor:
+                    # Check if the source table exists
+                    if not table_exists(cursor, db_type, source_table):
+                        raise ValueError(f"The source table '{source_table}' does not exist.")
+
                     while True:
                         rows = []
                         current_chunk_size = 0
