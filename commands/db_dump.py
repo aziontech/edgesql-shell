@@ -7,20 +7,23 @@ DUMP_DATA_ONLY = 0x1 << 1
 DUMP_ALL = DUMP_SCHEMA_ONLY | DUMP_DATA_ONLY
 DUMP_NONE = 0x0
 
-def dump_table(shell, table_name, dump=DUMP_ALL, batch_size=512):
+def dump_table(shell, table_name, dump=DUMP_ALL, max_chunk_size_mb=0.8):
     """
-    Dump table structure and data as SQL.
+    Dump table structure and data as SQL with an adaptive chunk size based on the size of the first statement.
 
     Args:
         table_name (str): Name of the table to dump.
         dump (int, optional): Flag indicating what to dump (schema only, data only, or both). Defaults to DUMP_ALL.
-        batch_size (int, optional): Size of each data batch for fetching. Defaults to 512.
+        max_chunk_size_mb (float, optional): Maximum size of each chunk in megabytes. Default is 0.8 MB.
     """
     try:
         # Check if the table exists
         if not shell.edgeSql.exist_table(table_name):
             utils.write_output(f"Table '{table_name}' not found", shell.output)
             return
+
+        max_chunk_size_bytes = max_chunk_size_mb * 1024 * 1024
+        estimated_chunk_size = None  # Start with no estimate
 
         # Dump schema if requested
         if dump & DUMP_SCHEMA_ONLY:
@@ -77,7 +80,7 @@ def dump_table(shell, table_name, dump=DUMP_ALL, batch_size=512):
                 # Fetch data in batches and generate SQL insert statements
                 offset = 0
                 while offset < total_rows:
-                    limit = min(batch_size, total_rows - offset)  # Calculate limit for this batch
+                    limit = 1 if estimated_chunk_size is None else max(1, min(512, int(max_chunk_size_bytes / estimated_chunk_size)))
                     data_output = shell.edgeSql.execute(f'SELECT * FROM {table_name} LIMIT {limit} OFFSET {offset};')
                     if not data_output['success']:
                         utils.write_output(f"{data_output['error']}")
@@ -88,8 +91,11 @@ def dump_table(shell, table_name, dump=DUMP_ALL, batch_size=512):
                         sql_commands = sql.generate_insert_sql(df, table_name)
                         for cmd in sql_commands:
                             utils.write_output(cmd, shell.output)
-                    
-                    offset += batch_size
+                            if estimated_chunk_size is None:
+                                # Estimate the chunk size based on the first statement
+                                estimated_chunk_size = len(cmd.encode('utf-8')) / len(sql_commands)
+
+                    offset += limit
 
     except Exception as e:
         raise RuntimeError(f"Error dumping table '{table_name}': {e}") from e
@@ -166,4 +172,3 @@ def do_dump(shell, arg):
             _dump(shell, arg=args, dump=DUMP_ALL)
         else:
             _dump(shell, arg=args, dump=dump_type)
-
