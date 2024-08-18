@@ -44,6 +44,7 @@ class EdgeSQLShell(cmd.Cmd):
             ".exit": self.do_exit,
             ".output": self.do_output,
             ".mode": self.do_mode,
+            ".help": self.do_help
         }
 
     def import_commands_from_directory(self, directory):
