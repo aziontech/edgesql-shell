@@ -6,7 +6,7 @@ from commands import import_kaggle as kaggle
 from commands import import_database as database
 from commands import import_turso as turso
 
-def _import_data(edgeSql, dataset_generator, table_name, chunk_size=512):
+def _import_data(edgeSql, dataset_generator, table_name):
     """
     Import data into a specified database table in chunks with a progress bar.
 
@@ -14,7 +14,6 @@ def _import_data(edgeSql, dataset_generator, table_name, chunk_size=512):
         edgeSql (EdgeSQL): An instance of the EdgeSQL class.
         dataset_generator (generator): A generator yielding pandas DataFrames (chunks) to be imported.
         table_name (str): The name of the database table where the data will be imported.
-        chunk_size (int, optional): Size of each data chunk for insertion. Default is 512.
 
     Returns:
         bool: True if the import is successful, False otherwise.
