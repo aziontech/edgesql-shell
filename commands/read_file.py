@@ -190,3 +190,4 @@ def do_read(shell, arg):
         utils.write_output(f"Runtime error during execution: {e}")
     except Exception as e:
         utils.write_output(f"An unexpected error occurred during execution: {e}")
+        raise RuntimeError(f"Unexpected error during execution of {file_name}") from e
