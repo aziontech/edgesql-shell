@@ -70,7 +70,7 @@ class EdgeSQL:
         Returns:
             dict: A dictionary containing 'success' (bool) and 'data' (dict or None) or 'error' (str).
         """
-        result = {'success': False, 'data': None, 'error': None}
+        result = {'success': False, 'data': None, 'error': None, 'command': None}
 
         # Check if a database is selected
         if self._current_database_id is None:
@@ -118,8 +118,9 @@ class EdgeSQL:
                 if result_data:
                     query_result = result_data[0]
                     if 'error' in query_result:
-                        error_msg = f"{query_result.get('error')}"
+                        error_msg = f"{query_result.get('error')}. statusCode={response.status_code}"
                         result['error'] = error_msg
+                        result['command'] = json.dumps(sql_commands)
                     else:
                         results = query_result.get('results', {})
                         columns = results.get('columns', [])
@@ -129,12 +130,15 @@ class EdgeSQL:
                 else:
                     error_msg = "Empty or invalid response data."
                     result['error'] = error_msg
+                    result['command'] = sql_commands
             else:
                 error_msg = json_data.get('error', 'Unknown error')
-                result['error'] = error_msg
+                result['error'] = f'{error_msg}. statusCode={response.status_code}'
+                result['command'] = sql_commands
         except requests.RequestException as e:
-            error_msg = f"Request error: {e}"
+            error_msg = f"Request error: {e}. statusCode={response.status_code}"
             result['error'] = error_msg
+            result['command'] = sql_commands
 
         return result
 

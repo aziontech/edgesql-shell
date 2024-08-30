@@ -20,44 +20,58 @@ def fetch_sql_commands_from_file(file, limit, offset):
     file.seek(offset)
     commands = []
     command = ""
-    command_count = 0
     in_string = False
-    string_char = "" 
 
     while True:
+        line_start_offset = file.tell()
         line = file.readline()
         if not line:
             break
 
-        stripped_line = line.strip()
+        line = line.strip() 
 
-        if stripped_line in ['BEGIN TRANSACTION;', 'COMMIT;']:
+        if line.upper() in ['BEGIN TRANSACTION;', 'COMMIT;']:
             continue
 
-        for char in line:
-            if char in ('"', "'"):
-                if in_string:
-                    if char == string_char:
-                        in_string = False
-                        string_char = ""
-                else:
-                    in_string = True
-                    string_char = char
+        i = 0
+        while i < len(line):
+            char = line[i]
 
-            command += char
+            if in_string:
+                if char == "'":
+                    if i + 1 < len(line) and line[i + 1] == char:
+                        command += "''"
+                        i += 1
+                    else:
+                        in_string = False
+                        command += char
+                else:
+                    command += char
+            else:
+                if char == "'":
+                    in_string = True
+
+                command += char
 
             if char == ';' and not in_string:
-                command_count += 1
                 commands.append(command.strip())
                 command = ""
 
                 if len(commands) >= limit:
                     break
 
+            i += 1
+
         if len(commands) >= limit:
             break
+    
+    current_position = file.tell()
 
-    return commands, file.tell()
+    if command.strip():
+        file.seek(line_start_offset)
+        current_position = line_start_offset
+
+    return commands, current_position
 
 
 def fetch_chunks(file_name, max_chunk_rows=512, max_chunk_size_mb=0.8):
@@ -139,15 +153,14 @@ def _import_data(edgeSql, dataset_generator, file_name):
         dataset_generator = iter(chunks)
         for chunk in dataset_generator:
             try:
-                chunk_sql = ' '.join(chunk)
-                result = edgeSql.execute(chunk_sql)
+                result = edgeSql.execute(chunk)
                 if not result['success']:
                     utils.write_output(f"Error executing SQL chunk: {result['error']}")
                     return False
 
                 progress_bar.update(1)
             except RuntimeError as e:
-                utils.write_output(f"Error executing SQL: {e}")
+                utils.write_output(f"Error executing SQL: {e}\nFrom command {result['command']}")
                 return False
 
         progress_bar.close()
