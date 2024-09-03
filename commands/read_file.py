@@ -58,13 +58,11 @@ def fetch_sql_commands_from_file(file, limit, offset):
                 command = ""
 
                 if len(commands) >= limit:
-                    break
+                    current_position = file.tell()
+                    return commands, current_position
 
             i += 1
 
-        if len(commands) >= limit:
-            break
-    
     current_position = file.tell()
 
     if command.strip():
@@ -73,6 +71,12 @@ def fetch_sql_commands_from_file(file, limit, offset):
 
     return commands, current_position
 
+def limit_estimation(rows, max_chunk_size_bytes, margin):
+    chunk_size = int(utils.total_size(rows) // len(rows))
+    effective_max_chunk_size = margin * max_chunk_size_bytes
+    num_entries = int(effective_max_chunk_size // chunk_size)
+    
+    return num_entries
 
 def fetch_chunks(file_name, max_chunk_rows=512, max_chunk_size_mb=0.8):
     """
@@ -101,18 +105,24 @@ def fetch_chunks(file_name, max_chunk_rows=512, max_chunk_size_mb=0.8):
                     if not fetched_rows:
                         break
 
+                    partial_chunk_size = 0
+                    partial_rows = []
                     for row in fetched_rows:
                         row_size = utils.total_size(row)
-                        if current_chunk_size + row_size > max_chunk_size_bytes:
+                        if partial_chunk_size + row_size > max_chunk_size_bytes:
+                            #reset offset and try again with lower chunk size
+                            new_byte_offset = byte_offset
+                            estimated_limit = len(partial_rows)
+                            partial_rows.clear()
+                            partial_chunk_size = 0
                             limit_reached = True
                             break
 
-                        rows.append(row)
-                        current_chunk_size += row_size
+                        partial_rows.append(row)
+                        partial_chunk_size += row_size
 
-                    if limit_reached:
-                        break
-
+                    rows.extend(partial_rows)
+                    current_chunk_size += partial_chunk_size
                     byte_offset = new_byte_offset              
 
                 if not rows:
@@ -120,11 +130,12 @@ def fetch_chunks(file_name, max_chunk_rows=512, max_chunk_size_mb=0.8):
 
                 yield rows
 
-                if current_chunk_size < max_chunk_size_bytes * 0.75:
-                    estimated_limit = min(max_chunk_rows, estimated_limit * 2)
-
                 if limit_reached:
                     estimated_limit = max(1, len(rows))
+                else:
+                    candiate_limit = min(limit_estimation(rows, max_chunk_size_bytes, 0.85), max_chunk_rows)
+                    if candiate_limit > estimated_limit:
+                        estimated_limit = candiate_limit
 
         spinner.succeed('Data analysis completed!')
     except Exception as e:
