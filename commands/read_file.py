@@ -28,8 +28,6 @@ def fetch_sql_commands_from_file(file, limit, offset):
         if not line:
             break
 
-        line = line.strip() 
-
         if line.upper() in ['BEGIN TRANSACTION;', 'COMMIT;']:
             continue
 
@@ -54,7 +52,7 @@ def fetch_sql_commands_from_file(file, limit, offset):
                 command += char
 
             if char == ';' and not in_string:
-                commands.append(command.strip())
+                commands.append(command)
                 command = ""
 
                 if len(commands) >= limit:
