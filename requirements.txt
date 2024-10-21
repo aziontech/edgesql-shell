@@ -1,6 +1,6 @@
 kaggle==1.6.17
 pandas==2.2.3
-mysql-connector-python==9.0.0
+mysql-connector-python==9.1.0
 pathvalidate==3.2.1
 psycopg2==2.9.9
 Requests==2.32.3
