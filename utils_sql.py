@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import numpy as np
 import ast
+import re
 
 def sql_to_list(sql_buffer):
     """
@@ -139,28 +140,42 @@ def generate_create_table_sql(df, table_name):
     return sql
 
 
-def generate_insert_sql(df, table_name):
+def generate_insert_sql(df, table_name, raw_columns=None, exclude_columns=None):
     """
     Generate SQL INSERT statements based on the DataFrame data.
 
     Args:
         df (pandas.DataFrame): The DataFrame containing data to be inserted.
         table_name (str): The name of the table into which data will be inserted.
+        raw_columns (list, optional): List of column names whose values are raw SQL expressions.
+                                       These values will not be quoted or modified. Defaults to None.
+        exclude_columns (list, optional): List of column names to exclude from the INSERT. Defaults to None.
 
     Returns:
         list: A list of SQL INSERT statements.
     """
+    if raw_columns is None:
+        raw_columns = []
+    if exclude_columns is None:
+        exclude_columns = []
+
+    # Exclude specific columns
+    df = df.drop(columns=exclude_columns, errors='ignore')
+
     sql_commands = []
     df.columns = df.columns.str.replace(' ', '_').str.replace('.', '_')
     vector_columns = identify_vector_columns(df)
     column_names = df.columns.tolist()
-    columns = ", ".join(df.columns)
+    columns = ", ".join(column_names)
     
     for row in df.itertuples(index=False):
         values = []
         for column_name, value in zip(column_names, row):
-            if column_name in vector_columns:
-                values.append(f"vector('{value}')")
+            if column_name in raw_columns:
+                if pd.isnull(value):
+                    values.append("NULL")
+                else:
+                    values.append(f"{value}")
             elif pd.isnull(value):
                 values.append("NULL")
             elif isinstance(value, str):
@@ -183,7 +198,7 @@ def generate_insert_sql(df, table_name):
         sql_commands.append(sql)
     return sql_commands
 
-def format_sql(statement, reindent=True, keyword_case='upper'):
+def format_sql(statement, reindent=True, indent_width=4, keyword_case='upper'):
     """
     Format SQL statement using sqlparse library.
 
@@ -199,10 +214,34 @@ def format_sql(statement, reindent=True, keyword_case='upper'):
         if not isinstance(statement, str):
             raise ValueError("Statement must be a string")
 
-        formatted_statement = sqlparse.format(statement, reindent=reindent, keyword_case=keyword_case)
+        formatted_statement = sqlparse.format(statement, 
+                                              reindent=reindent,
+                                              reindent_aligned=True,
+                                              indent_columns=True,
+                                              indent_width=indent_width, 
+                                              keyword_case=keyword_case)
         return formatted_statement
     except ValueError as e:
         raise ValueError(f"ValueError formatting SQL: {e}") from e
     except Exception as e:
         raise ValueError(f"Unexpected error formatting SQL: {e}") from e
     
+
+def get_autoincrement_columns(create_table_sql):
+    """
+    Parse the CREATE TABLE statement and return a list of column names with AUTOINCREMENT.
+
+    Args:
+        create_table_sql (str): The CREATE TABLE SQL statement.
+
+    Returns:
+        list: List of column names that have AUTOINCREMENT.
+    """
+    autoinc_columns = []
+    # Use regex to find columns with AUTOINCREMENT
+    # Assume syntax: column_name TYPE PRIMARY KEY AUTOINCREMENT
+    pattern = re.compile(r'\b(\w+)\s+\w+\s+PRIMARY\s+KEY\s+AUTOINCREMENT\b', re.IGNORECASE)
+    matches = pattern.findall(create_table_sql)
+    autoinc_columns.extend(matches)
+    return autoinc_columns
+
