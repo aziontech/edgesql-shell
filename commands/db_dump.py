@@ -70,7 +70,10 @@ def dump_table(shell, table_name, dump=DUMP_ALL, max_chunk_size_mb=0.8):
         if dump & DUMP_SCHEMA_ONLY:
             if create_table_sql:
                 statement = create_table_sql
-                create_stmt = f"CREATE TABLE IF NOT EXISTS {statement[len('CREATE TABLE '):]};"
+                if 'virtual'in statement.lower():
+                    create_stmt = f"CREATE VIRTUAL TABLE IF NOT EXISTS {statement[len('CREATE VIRTUAL TABLE '):]};"
+                else:
+                    create_stmt = f"CREATE TABLE IF NOT EXISTS {statement[len('CREATE TABLE '):]};"
                 formatted_query = sql.format_sql(create_stmt)
                 utils.write_output(formatted_query, shell.output)
 
@@ -175,13 +178,14 @@ def _dump(shell, arg=False, dump=DUMP_ALL):
         arg (list, optional): List of specific tables to dump. Defaults to False.
         dump (int, optional): Flag indicating what to dump (schema only, data only, or both). Defaults to DUMP_ALL.
     """
+    statement = "SELECT name FROM sqlite_schema WHERE type = 'table';"
     try:
         utils.write_output("PRAGMA foreign_keys=OFF;", shell.output)
         utils.write_output("BEGIN TRANSACTION;", shell.output)
 
         # Dump all tables if no specific tables are provided
         if not arg or len(arg) == 0:
-            tables_output = shell.edgeSql.execute("SELECT name FROM sqlite_schema WHERE type = 'table';")
+            tables_output = shell.edgeSql.execute(statement)
             if not tables_output['success']:
                 utils.write_output(f"{tables_output['error']}")
                 return
