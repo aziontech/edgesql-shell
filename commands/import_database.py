@@ -2,6 +2,7 @@ import os
 import pandas as pd
 import mysql.connector
 import psycopg2
+import sqlite3
 from psycopg2 import sql, OperationalError
 from halo import Halo
 import utils
@@ -20,10 +21,10 @@ def is_remote(host):
 
 def connect_database(db_type, use_tls, connection_args):
     """
-    Connect to a database based on type and connection arguments.
+    Connect to a database based on type and connection arguments, including SQLite.
 
     Args:
-        db_type (str): The type of the database ('mysql' or 'postgres').
+        db_type (str): The type of the database ('mysql', 'postgres', or 'sqlite').
         use_tls (bool): Whether to use TLS for the connection.
         connection_args (dict): Connection arguments for the database.
 
@@ -37,8 +38,10 @@ def connect_database(db_type, use_tls, connection_args):
         return connect_mysql(use_tls, connection_args)
     elif db_type == 'postgres':
         return connect_postgres(use_tls, connection_args)
+    elif db_type == 'sqlite':
+        return connect_sqlite(connection_args)
     else:
-        raise ValueError("Invalid database type. Use 'mysql' or 'postgres'.")
+        raise ValueError("Invalid database type. Use 'mysql', 'postgres' or 'sqlite'.")
 
 def connect_mysql(use_tls, connection_args):
     """
@@ -104,6 +107,44 @@ def connect_postgres(use_tls, connection_args, timeout=60000):
     except psycopg2.Error as e:
         raise OperationalError(f"Error connecting to PostgreSQL: {e}") from e
 
+def connect_sqlite(connection_args):
+    """
+    Connect to a SQLite database.
+
+    Args:
+        connection_args (dict): Connection arguments for the SQLite database.
+
+    Returns:
+        Connection: A connection object to the SQLite database.
+
+    Raises:
+        OperationalError: If there is an error connecting to the database.
+    """
+    try:
+        return sqlite3.connect(connection_args['database'])
+    except sqlite3.Error as e:
+        raise OperationalError(f"Error connecting to SQLite: {e}") from e
+
+
+def fetch_data_from_table_sqlite(cursor, source_table, limit, offset):
+    """
+    Fetch data from a SQLite table.
+
+    Args:
+        cursor (Cursor): The SQLite cursor object.
+        source_table (str): The name of the source table.
+        limit (int): The maximum number of rows to fetch.
+        offset (int): The offset for fetching rows.
+
+    Returns:
+        list: Fetched rows from the table.
+        list: Description of the columns.
+    """
+    query = f"SELECT * FROM {source_table} LIMIT ? OFFSET ?"
+    cursor.execute(query, (limit, offset))
+    return cursor.fetchall(), cursor.description
+
+
 def fetch_data_from_table_mysql(cursor, source_table, limit, offset):
     """
     Fetch data from a MySQL table.
@@ -145,7 +186,7 @@ def fetch_data_from_table(db_type, cursor, source_table, limit, offset):
     Fetch data from a table in a database.
 
     Args:
-        db_type (str): The type of the database ('mysql' or 'postgres').
+        db_type (str): The type of the database ('mysql', 'postgres', or 'sqlite').
         cursor (Cursor): The cursor object for the database.
         source_table (str): The name of the source table.
         limit (int): The maximum number of rows to fetch.
@@ -162,6 +203,8 @@ def fetch_data_from_table(db_type, cursor, source_table, limit, offset):
         return fetch_data_from_table_mysql(cursor, source_table, limit, offset)
     elif db_type == 'postgres':
         return fetch_data_from_table_postgres(cursor, source_table, limit, offset)
+    elif db_type == 'sqlite':
+        return fetch_data_from_table_sqlite(cursor, source_table, limit, offset)
     else:
         raise ValueError("Unsupported database type.")
 
@@ -186,7 +229,7 @@ def table_exists(cursor, db_type, table_name):
 
     Args:
         cursor (Cursor): The database cursor.
-        db_type (str): The type of the database ('mysql' or 'postgres').
+        db_type (str): The type of the database ('mysql', 'postgres', or 'sqlite').
         table_name (str): The name of the table to check.
 
     Returns:
@@ -199,6 +242,8 @@ def table_exists(cursor, db_type, table_name):
         cursor.execute(f"SHOW TABLES LIKE '{table_name}';")
     elif db_type == 'postgres':
         cursor.execute(f"SELECT to_regclass('{table_name}');")
+    elif db_type == 'sqlite':
+        cursor.execute(f"SELECT name FROM sqlite_master WHERE type='table' AND name='{table_name}';")
     else:
         raise ValueError(f"Unsupported database type: {db_type}")
 
@@ -211,7 +256,7 @@ def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_s
     Import data from a database in chunks.
 
     Args:
-        db_type (str): The type of the database ('mysql' or 'postgres').
+        db_type (str): The type of the database ('mysql', 'postgres', or 'sqlite').
         db_database (str): The name of the database.
         source_table (str): The name of the source table.
         max_chunk_rows (int, optional): Maximum number of rows per chunk. Default is 512.
@@ -229,10 +274,14 @@ def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_s
     ssl_key = os.environ.get(f'{db_type.upper()}_SSL_KEY')
     ssl_verify_cert = bool(os.environ.get(f'{db_type.upper()}_SSL_VERIFY_CERT', False))
 
-    if not all([db_user, db_password, db_host, db_database]):
-        raise EnvironmentError(f"{db_type.upper()} environmental variables not set correctly.")
+    if db_type == 'sqlite':
+        connection_args = {'database': db_database}
+        use_tls = False
+    else:
+        if not all([db_user, db_password, db_host, db_database]):
+            raise EnvironmentError(f"{db_type.upper()} environmental variables not set correctly.")
 
-    use_tls = ssl_ca and ssl_cert and ssl_key and is_remote(db_host)
+        use_tls = ssl_ca and ssl_cert and ssl_key and is_remote(db_host)
 
     if db_type == 'mysql' and db_port == 0:
         db_port = 3306
@@ -255,20 +304,22 @@ def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_s
         """
         Fetch data in chunks from the database table.
 
-        Yields:
+            Yields:
             pandas.DataFrame: A chunk of the data from the table.
         """
         offset = 0
         max_chunk_size_bytes = max_chunk_size_mb * 1024 * 1024
         estimated_row_size = None
         estimated_limit = max_chunk_rows
+        current_chunk_size = 0
 
         spinner = Halo(text='Analyzing source table and calculating chunks...', spinner='line')
         spinner.start()
 
         try:
             with connect_database(db_type, use_tls, connection_args) as conn:
-                with conn.cursor() as cursor:
+                cursor = conn.cursor()
+                try:
                     # Check if the source table exists
                     if not table_exists(cursor, db_type, source_table):
                         raise ValueError(f"The source table '{source_table}' does not exist.")
@@ -309,9 +360,10 @@ def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_s
                         df_chunk = pd.DataFrame(rows, columns=columns)
                         yield df_chunk
 
-                        # Adjust estimated_limit for the next iteration
-                        if current_chunk_size < max_chunk_size_bytes * 0.75:
-                            estimated_limit = min(max_chunk_rows, estimated_limit * 2)
+                finally:
+                    cursor.close()
+                    if current_chunk_size < max_chunk_size_bytes * 0.75:
+                        estimated_limit = min(max_chunk_rows, estimated_limit * 2)
 
             spinner.succeed('Data analysis completed!')
         except Exception as e:

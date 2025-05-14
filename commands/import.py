@@ -69,6 +69,7 @@ def do_import(shell, arg):
         .import kaggle <dataset> <data_name> <table_name>: Import data from a Kaggle dataset.
         .import mysql <database> <source_table> <table_name>: Import data from a MySQL database table.
         .import postgres <database> <source_table> <table_name>: Import data from PostgreSQL database table.
+        .import sqlite <database> <source_table> <table_name>: Import data from an SQLite database table.
         .import turso <database> <source_table> <table_name>: Import data from Turso database.
 
     Examples:
@@ -90,6 +91,7 @@ def do_import(shell, arg):
         utils.write_output(".import kaggle <dataset> <data_name> <table_name>")
         utils.write_output(".import mysql <database> <source_table> <table_name>")
         utils.write_output(".import postgres <database> <source_table> <table_name>")
+        utils.write_output(".import sqlite <database> <source_table> <table_name>")
         utils.write_output(".import turso <database> <source_table> <table_name>")
         return
 
@@ -117,6 +119,16 @@ def do_import(shell, arg):
 
             dataset_generator = kaggle.importer(dataset, data_name)
         elif sub_command in ['mysql', 'postgres']:
+            db_name = args[1]
+            db_table_name = args[2]
+            table_name = args[3]
+
+            if not table_name:
+                utils.write_output("Error: Table name cannot be empty.")
+                return
+
+            dataset_generator = database.importer(sub_command, db_name, db_table_name)
+        elif sub_command == 'sqlite':
             db_name = args[1]
             db_table_name = args[2]
             table_name = args[3]
