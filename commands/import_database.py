@@ -363,7 +363,7 @@ def importer(db_type, db_database, source_table, max_chunk_rows=512, max_chunk_s
                 finally:
                     cursor.close()
                     if current_chunk_size < max_chunk_size_bytes * 0.75:
-                            estimated_limit = min(max_chunk_rows, estimated_limit * 2)
+                        estimated_limit = min(max_chunk_rows, estimated_limit * 2)
 
             spinner.succeed('Data analysis completed!')
         except Exception as e:
