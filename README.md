@@ -3,7 +3,7 @@
 [![python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion EdgeSQL Database, allowing users to manage databases, execute SQL commands, and perform various database operations.
+EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion EdgeSQL Database, allowing users to manage databases, Execute SQL commands on Azion EdgeSQL databases.
 
 ## EdgeSQL Shell Documentation Index
 
@@ -16,6 +16,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    - [Setting Kaggle Credentials](#setting-kaggle-credentials)
    - [Setting MySQL Credentials](#setting-mysql-credentials)
    - [Setting PostgreSQL Credentials](#setting-postgresql-credentials)
+   - [Setting SQLite Usage](#setting-sqlite-usage)
    - [Setting Turso Credentials](#setting-turso-credentials)
 7. [Contributing](#contributing)
 8. [License](#license)
@@ -40,7 +41,7 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 		- Datatype (F32_BLOB / FLOAT32)
 		- Use vector function to convert vector from string representation into the binary format
 	- From file files: CSV or XLSX capability
-	- From databases: Mysql or PostgreSQL
+	- From databases: Mysql, PostgreSQL or SQLite
 	- From Kaggle Datasets
 	- From libSQL from Turso
 - Error handling and graceful exit
@@ -148,6 +149,15 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
    export MYSQL_SSL_VERIFY_CERT=True|False
  ```
  
+
+### Setting SQLite Usage ###
+
+SQLite databases are file-based and do not require credentials like other databases. To use an SQLite database, specify the path to the `.db` file in your import commands.
+
+Example:
+```bash
+.import sqlite /path/to/your/database.db source_table_name target_table_name
+```
 
 ### Setting PostgreSQL Credentials ###
  
