@@ -2,7 +2,7 @@ import pandas as pd
 import os
 import zipfile
 import json
-from requests.exceptions import RequestException
+import requests
 
 if not 'KAGGLE_USERNAME' in os.environ or not 'KAGGLE_KEY' in os.environ:
     os.environ['KAGGLE_USERNAME'] = '__NONE__'
