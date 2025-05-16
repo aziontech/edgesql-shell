@@ -10,7 +10,6 @@ if not 'KAGGLE_USERNAME' in os.environ or not 'KAGGLE_KEY' in os.environ:
 
 import kaggle
 from kaggle.api.kaggle_api_extended import Configuration
-#from kaggle.rest import ApiException
 
 class EdgSQLKaggle:
     def __init__(self):
@@ -124,7 +123,7 @@ class EdgSQLKaggle:
             local_file_path = self.get_local_dataset_path(dataset_name, data_file)
             self._df = pd.read_csv(local_file_path)
             return True
-        except ApiException as e:
+        except requests.exceptions.RequestException as e:
             raise RuntimeError(f'Error importing Kaggle dataset "{dataset_name}": {e}') from e
         except FileNotFoundError as e:
             raise FileNotFoundError(f'Error: Dataset "{dataset_name}" not found on Kaggle.') from e
