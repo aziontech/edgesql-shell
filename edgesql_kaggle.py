@@ -2,6 +2,7 @@ import pandas as pd
 import os
 import zipfile
 import json
+import requests
 
 if not 'KAGGLE_USERNAME' in os.environ or not 'KAGGLE_KEY' in os.environ:
     os.environ['KAGGLE_USERNAME'] = '__NONE__'
@@ -9,7 +10,7 @@ if not 'KAGGLE_USERNAME' in os.environ or not 'KAGGLE_KEY' in os.environ:
 
 import kaggle
 from kaggle.api.kaggle_api_extended import Configuration
-from kaggle.rest import ApiException
+#from kaggle.rest import ApiException
 
 class EdgSQLKaggle:
     def __init__(self):
@@ -58,7 +59,7 @@ class EdgSQLKaggle:
 
             self.api = kaggle.KaggleApi(kaggle.ApiClient(configuration))
             self.api.authenticate()
-        except ApiException as e:
+        except requests.exceptions.RequestException as e:
             raise RuntimeError(f'Error authenticating with Kaggle API: {e}') from e
 
     def get_dataset(self):
