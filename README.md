@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="Azion Edge SQL Shell Logo" width="200"/>
+</p>
+
 # EdgeSQL Shell
 
 [![python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
@@ -7,19 +11,21 @@ EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion 
 
 ## EdgeSQL Shell Documentation Index
 
-1. [Features](#features)
-2. [Requirements](#requirements)
-3. [Installation](#installation)
-4. [Usage](#usage)
-5. [Other Settings](#other-settings)
-   - [Setting Custom Azion API Entrypoint](#setting-custom-azion-api-entrypoint)
-   - [Setting Kaggle Credentials](#setting-kaggle-credentials)
-   - [Setting MySQL Credentials](#setting-mysql-credentials)
-   - [Setting PostgreSQL Credentials](#setting-postgresql-credentials)
-   - [Setting SQLite Usage](#setting-sqlite-usage)
-   - [Setting Turso Credentials](#setting-turso-credentials)
-7. [Contributing](#contributing)
-8. [License](#license)
+- [EdgeSQL Shell](#edgesql-shell)
+  - [EdgeSQL Shell Documentation Index](#edgesql-shell-documentation-index)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Other Settings](#other-settings)
+    - [Setting Custom Azion API Entrypoint](#setting-custom-azion-api-entrypoint)
+    - [Setting Kaggle Credentials](#setting-kaggle-credentials)
+    - [Setting MySQL Credentials](#setting-mysql-credentials)
+    - [Setting SQLite Usage](#setting-sqlite-usage)
+    - [Setting PostgreSQL Credentials](#setting-postgresql-credentials)
+    - [Setting Turso Credentials](#setting-turso-credentials)
+  - [Contributing](#contributing)
+  - [License](#license)
 
 ## Features
 
