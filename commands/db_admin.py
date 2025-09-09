@@ -1,21 +1,24 @@
 import utils
 import re
+import requests
 #command databases
 def do_databases(shell, arg):
     """List all databases."""
     try:
         db_list = shell.edgeSql.list_databases()
         if db_list:
-            databases = db_list.get('databases')
-            columns = db_list.get('columns')
-            if databases and columns:
+            databases = db_list.get('databases', [])
+            columns = db_list.get('columns', [])
+            if columns:  # Always show table even if empty
                 shell.query_output(databases, columns)
             else:
                 utils.write_output("Error: Invalid database information.")
         else:
             utils.write_output("No databases found.")
+    except (ValueError, requests.RequestException) as e:
+        utils.write_output(f"Error listing databases: {e}")
     except Exception as e:
-        raise RuntimeError(f"{e}") from e
+        utils.write_output(f"Unexpected error: {e}")
 
 #command .use
 def do_use(shell, arg):

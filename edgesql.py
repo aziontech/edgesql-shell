@@ -152,27 +152,44 @@ class EdgeSQL:
         """
         try:
             response = requests.get(self._base_url, headers=self.__headers(), timeout=self.timeout)
+            
+            # Check if the response content is empty
+            if not response.content:
+                raise ValueError(f"Empty response from server. statusCode={response.status_code}")
+            
             try:
                 json_data = response.json()
             except json.JSONDecodeError as e:
-                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
+                raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}. Response content: {response.text[:200]}") from e
 
             if response.status_code == HTTPStatus.OK:  # 200
-                databases = json_data.get('results')
-                if databases:
-                    db_list = {
-                        'databases': [
-                            (db.get('id'), db.get('name'), db.get('status'), db.get('created_at'), db.get('updated_at'))
-                            for db in databases
-                        ],
-                        'columns': ['ID', 'Name', 'Status', 'Created At', 'Updated At']
-                    }
-                    return db_list
+                databases = json_data.get('results', [])
+                db_list = {
+                    'databases': [
+                        (db.get('id'), db.get('name'), db.get('status'), db.get('active'), db.get('last_modified'), db.get('last_editor'), db.get('product_version'))
+                        for db in databases
+                    ],
+                    'columns': ['ID', 'Name', 'Status', 'Active', 'Last Modified', 'Last Editor', 'Product Version']
+                }
+                return db_list
             else:
-                msg_err = json_data.get('detail', 'Unknown error')
-                raise ValueError(f'{msg_err}')
+                # Try to get error details from different possible fields
+                error_details = []
+                if 'detail' in json_data:
+                    error_details.append(f"detail: {json_data['detail']}")
+                if 'error' in json_data:
+                    error_details.append(f"error: {json_data['error']}")
+                if 'message' in json_data:
+                    error_details.append(f"message: {json_data['message']}")
+                
+                if error_details:
+                    msg_err = "; ".join(error_details)
+                else:
+                    msg_err = f"HTTP {response.status_code}: {response.reason}. Response: {json_data}"
+                
+                raise ValueError(f'{msg_err}. statusCode={response.status_code}')
         except requests.RequestException as e:
-            raise requests.RequestException(f'{e}') from e
+            raise requests.RequestException(f'Request failed: {e}') from e
 
         return None
 
@@ -265,12 +282,13 @@ class EdgeSQL:
                 data = json_data.get('data')
                 if data:
                     table_data = [
-                        ["Database ID", data['id']],
-                        ["Database Name", data['name']],
-                        ["Client ID", data['client_id']],
-                        ["Status", data['status']],
-                        ["Created At", data['created_at']],
-                        ["Updated At", data['updated_at']]
+                        ["Database ID", data.get('id')],
+                        ["Database Name", data.get('name')],
+                        ["Status", data.get('status')],
+                        ["Active", data.get('active')],
+                        ["Last Modified", data.get('last_modified')],
+                        ["Last Editor", data.get('last_editor')],
+                        ["Product Version", data.get('product_version')]
                     ]
                     database_info = {'table_data':table_data, 'columns': ["Attribute", "Value"]}
                 else:
@@ -442,6 +460,36 @@ class EdgeSQL:
         else:
             return False
 
+    def exist_object(self, object_name, object_type=None):
+        """
+        Check if a database object (table, view, index, trigger) exists in the current database.
+
+        Args:
+            object_name (str): The name of the object to check.
+            object_type (str, optional): The type of object ('table', 'view', 'index', 'trigger'). 
+                                       If None, checks for any type.
+
+        Returns:
+            bool: True if the object exists, False otherwise.
+        """
+        if object_type:
+            query = f"SELECT name FROM sqlite_master WHERE type='{object_type}' AND name='{object_name}';"
+        else:
+            query = f"SELECT name FROM sqlite_master WHERE name='{object_name}';"
+        
+        try:
+            result = self.execute(query)
+            if result['success'] == False:
+                return False
+        except Exception as e:
+            raise RuntimeError(f'{e}') from e
+
+        data = result.get('data', {})
+        if 'rows' in data and len(data['rows']) > 0:
+            return True
+        else:
+            return False
+
     def __headers(self):
         """
         Get the request headers including authorization token.
@@ -451,6 +499,6 @@ class EdgeSQL:
         """
         return {
             'accept': 'application/json',
-            'Authorization': f'Token {self._token}',
+            'Authorization': f'Bearer {self._token}',
             'Content-Type': 'application/json'
         }
