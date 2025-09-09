@@ -17,7 +17,7 @@ def do_databases(shell, arg):
             utils.write_output("No databases found.")
     except (ValueError, requests.RequestException) as e:
         utils.write_output(f"Error listing databases: {e}")
-    except Exception as e:
+    except (RuntimeError, ConnectionError) as e:
         utils.write_output(f"Unexpected error: {e}")
 
 #command .use
