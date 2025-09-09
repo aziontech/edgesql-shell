@@ -21,17 +21,17 @@ def dump_table(shell, table_name, dump=DUMP_ALL, max_chunk_size_mb=0.8):
         max_chunk_size_mb (float, optional): Maximum size of each chunk in megabytes. Default is 0.8 MB.
     """
     try:
-        # Check if the table exists
-        if not shell.edgeSql.exist_table(table_name):
-            utils.write_output(f"Table '{table_name}' not found", shell.output)
+        # Check if the object (table or view) exists
+        if not shell.edgeSql.exist_object(table_name):
+            utils.write_output(f"Table or view '{table_name}' not found", shell.output)
             return
 
         max_chunk_size_bytes = max_chunk_size_mb * 1024 * 1024
         estimated_chunk_size = None  # Start with no estimate
 
-        # Get the table schema
+        # Get the object schema (table or view)
         table_output = shell.edgeSql.execute(
-            f"SELECT sql FROM sqlite_schema WHERE type = 'table' "
+            f"SELECT sql FROM sqlite_schema WHERE type IN ('table', 'view') "
             f"AND sql NOT NULL AND name = '{table_name}' "
             f"ORDER BY tbl_name='sqlite_sequence', rowid;"
         )
@@ -46,25 +46,32 @@ def dump_table(shell, table_name, dump=DUMP_ALL, max_chunk_size_mb=0.8):
 
         create_table_sql = table_output['data']['rows'][0][0]
         autoinc_columns = sql.get_autoincrement_columns(create_table_sql)
+        
+        # Check if it's a view
+        is_view = shell.edgeSql.exist_object(table_name, 'view')
+        
+        columns = []
+        blob_columns = []
+        
+        if not is_view:
+            # Get column information using PRAGMA (only for tables, not views)
+            pragma_output = shell.edgeSql.execute(f"PRAGMA table_info({table_name});")
+            if not pragma_output['success']:
+                error_message = pragma_output.get('error', 'Unknown error while fetching table information.')
+                utils.write_output(f"Error fetching table info: {error_message}", shell.output)
+                return
 
-        # Get column information using PRAGMA
-        pragma_output = shell.edgeSql.execute(f"PRAGMA table_info({table_name});")
-        if not pragma_output['success']:
-            error_message = pragma_output.get('error', 'Unknown error while fetching table information.')
-            utils.write_output(f"Error fetching table info: {error_message}", shell.output)
-            return
+            if not pragma_output['data'] or not pragma_output['data'].get('rows'):
+                utils.write_output(f"No column information found for table '{table_name}'.", shell.output)
+                return
 
-        if not pragma_output['data'] or not pragma_output['data'].get('rows'):
-            utils.write_output(f"No column information found for table '{table_name}'.", shell.output)
-            return
-
-        columns_info = pragma_output['data']['rows']
-        columns = [col[1] for col in columns_info]
-        # Identifies columns that match BLOB types
-        blob_columns = [
-            col[1] for col in columns_info
-            if any(col[2].upper().startswith(blob_type) for blob_type in BLOB_TYPES)
-        ]
+            columns_info = pragma_output['data']['rows']
+            columns = [col[1] for col in columns_info]
+            # Identifies columns that match BLOB types
+            blob_columns = [
+                col[1] for col in columns_info
+                if any(col[2].upper().startswith(blob_type) for blob_type in BLOB_TYPES)
+            ]
 
         # Dump the schema if requested
         if dump & DUMP_SCHEMA_ONLY:
@@ -72,16 +79,25 @@ def dump_table(shell, table_name, dump=DUMP_ALL, max_chunk_size_mb=0.8):
                 statement = create_table_sql
                 if 'virtual'in statement.lower():
                     create_stmt = f"CREATE VIRTUAL TABLE IF NOT EXISTS {statement[len('CREATE VIRTUAL TABLE '):]};"
+                elif is_view:
+                    create_stmt = f"CREATE VIEW IF NOT EXISTS {statement[len('CREATE VIEW '):]};"
+                    # Don't format views to avoid excessive line breaks
+                    utils.write_output(create_stmt, shell.output)
                 else:
                     create_stmt = f"CREATE TABLE IF NOT EXISTS {statement[len('CREATE TABLE '):]};"
-                formatted_query = sql.format_sql(create_stmt)
-                utils.write_output(formatted_query, shell.output)
+                    formatted_query = sql.format_sql(create_stmt)
+                    utils.write_output(formatted_query, shell.output)
 
-            # Indexes, Triggers, and Views
+            # Indexes, Triggers, and Views (exclude views if we're already processing a view)
+            if is_view:
+                additional_types = "('index','trigger')"
+            else:
+                additional_types = "('index','trigger','view')"
+            
             additional_objects_output = shell.edgeSql.execute(
                 f"SELECT sql FROM sqlite_schema "
                 f"WHERE sql NOT NULL AND tbl_name = '{table_name}' "
-                f"AND type IN ('index','trigger','view');"
+                f"AND type IN {additional_types};"
             )
             if not additional_objects_output['success']:
                 error_message = additional_objects_output.get('error', 'Unknown error fetching additional objects.')
@@ -104,8 +120,8 @@ def dump_table(shell, table_name, dump=DUMP_ALL, max_chunk_size_mb=0.8):
                     if formatted_query:
                         utils.write_output(formatted_query, shell.output)
 
-        # Dump data if requested
-        if dump & DUMP_DATA_ONLY:
+        # Dump data if requested (skip for views as they don't have their own data)
+        if dump & DUMP_DATA_ONLY and not is_view:
             # Get total count of rows in the table
             count_output = shell.edgeSql.execute(f'SELECT COUNT(*) FROM {table_name};')
             if not count_output['success']:
