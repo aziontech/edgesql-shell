@@ -7,7 +7,7 @@ idna==3.11
 kaggle==1.7.4.5
 log-symbols==0.0.14
 mysql-connector-python==9.4.0
-numpy==2.3.3
+numpy==2.3.4
 pandas==2.3.3
 pathvalidate==3.3.1
 protobuf==6.32.1
