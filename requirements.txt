@@ -6,7 +6,7 @@ halo==0.0.31
 idna==3.11
 kaggle==1.7.4.5
 log-symbols==0.0.14
-mysql-connector-python==9.4.0
+mysql-connector-python==9.5.0
 numpy==2.3.3
 pandas==2.3.3
 pathvalidate==3.3.1
