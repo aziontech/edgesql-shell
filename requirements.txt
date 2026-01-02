@@ -4,7 +4,7 @@ charset-normalizer==3.4.3
 colorama==0.4.6
 halo==0.0.31
 idna==3.11
-kaggle==1.7.4.5
+kaggle==1.8.0
 log-symbols==0.0.14
 mysql-connector-python==9.5.0
 numpy==2.3.3
