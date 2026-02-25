@@ -117,16 +117,34 @@ class EdgeSQL:
                 result_data = json_data.get('data', [])
                 if result_data:
                     query_result = result_data[0]
-                    if 'error' in query_result:
-                        error_msg = f"{query_result.get('error')}. statusCode={response.status_code}"
-                        result['error'] = error_msg
-                        result['command'] = json.dumps(sql_commands)
-                    else:
+                    # Check for error at query_result level (multiple possible field names)
+                    error_found = False
+                    for error_field in ['error', 'message', 'detail']:
+                        if error_field in query_result:
+                            error_msg = f"{query_result.get(error_field)}. statusCode={response.status_code}"
+                            result['error'] = error_msg
+                            result['command'] = json.dumps(sql_commands)
+                            error_found = True
+                            break
+                    
+                    if not error_found:
                         results = query_result.get('results', {})
-                        columns = results.get('columns', [])
-                        rows = results.get('rows', [])
-                        result['data'] = {'columns': columns, 'rows': rows}
-                        result['success'] = True
+                        # Check if error is inside results field (multiple possible field names)
+                        results_error_found = False
+                        if isinstance(results, dict):
+                            for error_field in ['error', 'message', 'detail']:
+                                if error_field in results:
+                                    error_msg = f"{results.get(error_field)}. statusCode={response.status_code}"
+                                    result['error'] = error_msg
+                                    result['command'] = json.dumps(sql_commands)
+                                    results_error_found = True
+                                    break
+                        
+                        if not results_error_found:
+                            columns = results.get('columns', [])
+                            rows = results.get('rows', [])
+                            result['data'] = {'columns': columns, 'rows': rows}
+                            result['success'] = True
                 else:
                     error_msg = "Empty or invalid response data."
                     result['error'] = error_msg
@@ -163,7 +181,11 @@ class EdgeSQL:
                 raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}. Response content: {response.text[:200]}") from e
 
             if response.status_code == HTTPStatus.OK:  # 200
-                databases = json_data.get('results', [])
+                databases = json_data.get('results')
+                if databases is None and isinstance(json_data.get('data'), dict):
+                    databases = json_data.get('data', {}).get('results')
+                if databases is None:
+                    databases = []
                 db_list = {
                     'databases': [
                         (db.get('id'), db.get('name'), db.get('status'), db.get('active'), db.get('last_modified'), db.get('last_editor'), db.get('product_version'))
@@ -212,12 +234,37 @@ class EdgeSQL:
 
             if response.status_code == HTTPStatus.OK:  # 200
                 databases = json_data.get('results')
+                if databases is None and isinstance(json_data.get('data'), dict):
+                    databases = json_data.get('data', {}).get('results')
                 if databases:
-                    for db in json_data['results']:
-                        if db['name'] == database_name:
-                            self._current_database_id = db['id']
-                            self._current_database_name = db['name']
+                    # 1) Exact match by name
+                    for db in databases:
+                        if db.get('name') == database_name:
+                            self._current_database_id = db.get('id')
+                            self._current_database_name = db.get('name')
                             return True
+
+                    # 2) Exact match by ID (if the user typed a number)
+                    if str(database_name).isdigit():
+                        requested_id = int(database_name)
+                        for db in databases:
+                            if db.get('id') == requested_id:
+                                self._current_database_id = db.get('id')
+                                self._current_database_name = db.get('name')
+                                return True
+
+                    # 3) Unique partial match by name (non-destructive, but avoid ambiguity)
+                    matches = [db for db in databases if isinstance(db.get('name'), str) and database_name in db.get('name')]
+                    if len(matches) == 1:
+                        db = matches[0]
+                        self._current_database_id = db.get('id')
+                        self._current_database_name = db.get('name')
+                        return True
+                    if len(matches) > 1:
+                        match_names = ", ".join([m.get('name') for m in matches if m.get('name')])
+                        utils.write_output(f"Ambiguous database selector '{database_name}'. Matches: {match_names}")
+                        return False
+
                     utils.write_output(f"Database '{database_name}' not found.")
             else:
                 msg_err = json_data.get('detail', 'Unknown error')
@@ -245,7 +292,11 @@ class EdgeSQL:
                 raise ValueError(f"Error decoding JSON response: {e}. statusCode={response.status_code}") from e
 
             if response.status_code == HTTPStatus.OK:  # 200
-                databases = json_data.get('results',[])
+                databases = json_data.get('results')
+                if databases is None and isinstance(json_data.get('data'), dict):
+                    databases = json_data.get('data', {}).get('results')
+                if databases is None:
+                    databases = []
                 if databases:
                     for db in databases: #json_data['results']:
                         if db.get('name') == database_name:
