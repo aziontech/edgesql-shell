@@ -41,7 +41,7 @@ def fetch_sql_commands_from_file(file, limit, offset):
             all_commands = sql.sql_to_list(filtered_content)
             fetch_sql_commands_from_file._cached_commands = all_commands
             fetch_sql_commands_from_file._command_index = 0
-        except Exception as e:
+        except Exception as e: # pylint: disable=broad-exception-caught
             # Fallback to simple splitting if sqlparse fails
             simple_commands = [cmd.strip() for cmd in filtered_content.split(';') if cmd.strip()]
             fetch_sql_commands_from_file._cached_commands = simple_commands
