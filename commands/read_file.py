@@ -5,8 +5,8 @@ import utils
 
 def fetch_sql_commands_from_file(file, limit, offset):
     """
-    Fetch SQL commands from a file until the specified limit, starting from the given byte offset.
-    Ignores lines containing 'BEGIN TRANSACTION;' and 'COMMIT;'.
+    Fetch SQL commands from a file using sqlparse for robust parsing.
+    Uses command-based chunking instead of byte-based to avoid cutting commands in half.
 
     Args:
         file (file object): The file object opened for reading.
@@ -17,57 +17,52 @@ def fetch_sql_commands_from_file(file, limit, offset):
         list: Fetched SQL commands from the file.
         int: Position in the file after reading (byte offset).
     """
-    file.seek(offset)
-    commands = []
-    command = ""
-    in_string = False
-
-    while True:
-        line_start_offset = file.tell()
-        line = file.readline()
-        if not line:
-            break
-
-        if line.upper() in ['BEGIN TRANSACTION;', 'COMMIT;']:
-            continue
-
-        i = 0
-        while i < len(line):
-            char = line[i]
-
-            if in_string:
-                if char == "'":
-                    if i + 1 < len(line) and line[i + 1] == char:
-                        command += "''"
-                        i += 1
-                    else:
-                        in_string = False
-                        command += char
-                else:
-                    command += char
-            else:
-                if char == "'":
-                    in_string = True
-
-                command += char
-
-            if char == ';' and not in_string:
-                commands.append(command)
-                command = ""
-
-                if len(commands) >= limit:
-                    current_position = file.tell()
-                    return commands, current_position
-
-            i += 1
-
-    current_position = file.tell()
-
-    if command.strip():
-        file.seek(line_start_offset)
-        current_position = line_start_offset
-
-    return commands, current_position
+    import utils_sql as sql
+    
+    # If this is the first call (offset = 0), parse the entire file once
+    # and store commands in a global cache to avoid re-parsing
+    if not hasattr(fetch_sql_commands_from_file, '_cached_commands'):
+        file.seek(0)
+        content = file.read()
+        
+        # Filter out transaction control statements
+        lines = content.split('\n')
+        filtered_lines = []
+        
+        for line in lines:
+            stripped = line.strip().upper()
+            if stripped not in ['BEGIN TRANSACTION;', 'COMMIT;', 'BEGIN;', 'COMMIT']:
+                filtered_lines.append(line)
+        
+        filtered_content = '\n'.join(filtered_lines)
+        
+        # Use sqlparse for robust parsing (same as execute() method)
+        try:
+            all_commands = sql.sql_to_list(filtered_content)
+            fetch_sql_commands_from_file._cached_commands = all_commands
+            fetch_sql_commands_from_file._command_index = 0
+        except Exception as e:
+            # Fallback to simple splitting if sqlparse fails
+            simple_commands = [cmd.strip() for cmd in filtered_content.split(';') if cmd.strip()]
+            fetch_sql_commands_from_file._cached_commands = simple_commands
+            fetch_sql_commands_from_file._command_index = 0
+    
+    # Return the next batch of commands
+    start_idx = fetch_sql_commands_from_file._command_index
+    end_idx = start_idx + limit if limit else len(fetch_sql_commands_from_file._cached_commands)
+    
+    commands = fetch_sql_commands_from_file._cached_commands[start_idx:end_idx]
+    
+    # Update index for next call
+    fetch_sql_commands_from_file._command_index = end_idx
+    
+    # Calculate new position (approximate)
+    if commands:
+        new_position = offset + sum(len(cmd.encode('utf-8')) for cmd in commands)
+    else:
+        new_position = offset
+    
+    return commands, new_position
 
 def limit_estimation(rows, max_chunk_size_bytes, margin):
     chunk_size = int(utils.total_size(rows) // len(rows))
