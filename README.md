@@ -7,7 +7,7 @@
 [![python](https://img.shields.io/badge/Python-3.12-3776AB.svg?style=flat&logo=python&logoColor=white)](https://www.python.org)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion EdgeSQL Database, allowing users to manage databases, Execute SQL commands on Azion EdgeSQL databases.
+EdgeSQL Shell is a command-line interface (CLI) tool for interacting with Azion SQL Database, allowing users to manage databases, Execute SQL commands on Azion SQL databases.
 
 ## EdgeSQL Shell Documentation Index
 
